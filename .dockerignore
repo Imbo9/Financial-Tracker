@@ -1,0 +1,35 @@
+# Dipendenze e cache Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Credenziali — MAI nell'immagine
+config/.env
+
+# File temporanei pipeline
+/tmp/
+
+# Test e dev
+tests/
+.pytest_cache/
+.ruff_cache/
+
+# Editor e OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentazione (non necessaria a runtime)
+*.md

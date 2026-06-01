@@ -1,0 +1,66 @@
+services:
+
+  # ── Database Postgres locale ────────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg16   # Postgres 16 + pgvector preinstallato
+    container_name: revolut-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       finance
+      POSTGRES_USER:     user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"                 # accessibile da localhost:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d finance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Pipeline principale ─────────────────────────────────────────
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: revolut-pipeline
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - config/.env
+    environment:
+      # Override DATABASE_URL per puntare al container db
+      DATABASE_URL: postgresql://user:${DB_PASSWORD:-changeme}@db:5432/finance
+    volumes:
+      # Monta config/.env in lettura — le credenziali Enable Banking
+      # vengono scritte qui dall'auth e lette dalla pipeline
+      - ./config:/app/config
+    # Comando di default: pipeline completa
+    # Override: docker compose run pipeline --skip-categorize
+    command: []
+
+  # ── Auth (una-tantum, richiede browser) ─────────────────────────
+  # Uso: docker compose run --rm auth
+  # Nota: richiede accesso al browser dell'host → usa --network host
+  # Su Windows con Docker Desktop questo non funziona via container.
+  # Vedi README sezione "Auth su Windows".
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: revolut-auth
+    profiles: ["auth"]             # non parte con docker compose up
+    network_mode: host             # necessario per localhost:8080 callback
+    env_file:
+      - config/.env
+    volumes:
+      - ./config:/app/config       # scrive il token in config/.env
+    entrypoint: ["python", "src/auth/enable_banking_auth.py"]
+
+volumes:
+  postgres_data:
+    name: revolut-postgres-data    # volume nominato, persiste tra restart

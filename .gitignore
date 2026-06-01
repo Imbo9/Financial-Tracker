@@ -1,0 +1,38 @@
+# Credenziali — mai committare
+config/.env
+config/private_key.pem
+config/callback.html
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# uv
+.uv/
+
+# Test
+.pytest_cache/
+.ruff_cache/
+
+# File temporanei pipeline
+/tmp/
+*.json.tmp
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Claude Code
+.claude/
+CLAUDE.md
+SKILL.md
+
+# OS
+.DS_Store
+Thumbs.db
