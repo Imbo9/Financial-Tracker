@@ -48,40 +48,42 @@ ON CONFLICT (dedup_hash) DO NOTHING
 
 def reconcile_or_insert(conn, tx: NormalizedTransaction) -> ReconciliationResult:
     """Process one EB transaction: skip if verified, reconcile if pending match, else insert."""
+    # Step 1: check if this exact EB transaction is already verified
     with conn.cursor() as cur:
         cur.execute(_CHECK_EXISTING, (tx.dedup_hash,))
         row = cur.fetchone()
 
-    if row is not None:
-        if row[0] == "verified":
-            return ReconciliationResult(match=None, action="skipped")
-        # Row exists as pending — find the pending match by amount/time
-        with conn.cursor() as cur:
-            cur.execute(_FIND_PENDING_MATCH, (tx.amount, tx.currency, tx.booking_date))
-            match_row = cur.fetchone()
-        if match_row:
-            pending_id, pending_hash = match_row
-            with conn.cursor() as cur:
-                cur.execute(
-                    _UPDATE_TO_VERIFIED,
-                    (
-                        tx.dedup_hash,
-                        tx.booking_date,
-                        tx.merchant_name,
-                        tx.account_id,
-                        tx.source,
-                        tx.source_id,
-                        pending_id,
-                    ),
-                )
-            conn.commit()
-            log.info("Reconciled pending #%d → verified (%s)", pending_id, tx.dedup_hash[:8])
-            return ReconciliationResult(
-                match=ReconciliationMatch(pending_id=pending_id, pending_dedup_hash=pending_hash),
-                action="reconciled",
-            )
+    if row is not None and row[0] == "verified":
+        return ReconciliationResult(match=None, action="skipped")
 
-    # No existing row — insert fresh
+    # Step 2: check for a pending Tasker row matching amount + currency + ±10min
+    with conn.cursor() as cur:
+        cur.execute(_FIND_PENDING_MATCH, (tx.amount, tx.currency, tx.booking_date))
+        match_row = cur.fetchone()
+
+    if match_row:
+        pending_id, pending_hash = match_row
+        with conn.cursor() as cur:
+            cur.execute(
+                _UPDATE_TO_VERIFIED,
+                (
+                    tx.dedup_hash,
+                    tx.booking_date,
+                    tx.merchant_name,
+                    tx.account_id,
+                    tx.source,
+                    tx.source_id,
+                    pending_id,
+                ),
+            )
+        conn.commit()
+        log.info("Reconciled pending #%d → verified (%s)", pending_id, tx.dedup_hash[:8])
+        return ReconciliationResult(
+            match=ReconciliationMatch(pending_id=pending_id, pending_dedup_hash=pending_hash),
+            action="reconciled",
+        )
+
+    # Step 3: no existing verified row, no pending match — insert fresh
     with conn.cursor() as cur:
         cur.execute(_INSERT, tx.model_dump())
         inserted = cur.rowcount > 0
