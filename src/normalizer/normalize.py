@@ -1,4 +1,3 @@
-import hashlib
 import logging
 import re
 import sys
@@ -8,6 +7,8 @@ from pathlib import Path
 import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from src.normalizer.hash import eb_dedup_hash
 
 log = logging.getLogger(__name__)
 
@@ -42,13 +43,17 @@ def fetch_ecb_rates() -> dict[str, float]:
         series = data["dataSets"][0]["series"]
         dims = data["structure"]["dimensions"]["series"]
         currency_idx = next(i for i, d in enumerate(dims) if d["id"] == "CURRENCY")
+        fresh: dict[str, float] = {}
         for key, series_data in series.items():
             parts = key.split(":")
             currency = dims[currency_idx]["values"][int(parts[currency_idx])]["id"]
             obs = series_data.get("observations", {})
             if obs:
-                rate = float(list(obs.values())[-1][0])
-                _ecb_cache[currency] = rate
+                raw_value = list(obs.values())[-1][0]
+                if raw_value is None:
+                    continue  # ECB gap (holiday/weekend) — skip this currency
+                fresh[currency] = float(raw_value)
+        _ecb_cache.update(fresh)
         log.info("Loaded ECB rates for %d currencies", len(_ecb_cache))
     except Exception as exc:
         log.warning("Failed to fetch ECB rates: %s", exc)
@@ -58,24 +63,17 @@ def fetch_ecb_rates() -> dict[str, float]:
 @dataclass
 class NormalizedTransaction:
     dedup_hash: str
-    booking_date: str       # YYYY-MM-DDT00:00:00Z
-    amount: float           # negative = outflow, positive = inflow
+    booking_date: str  # YYYY-MM-DDT00:00:00Z
+    amount: float  # negative = outflow, positive = inflow
     currency: str
     eur_amount: float
     description: str
-    merchant_name: str      # cleaned — only this is sent to the categorizer
+    merchant_name: str  # cleaned — only this is sent to the categorizer
     account_id: str
     is_internal: bool
     category: str | None = None
     subcategory: str | None = None
     raw: dict = field(default_factory=dict)
-
-
-def _dedup_hash(date: str, amount: float, description: str, currency: str) -> str:
-    # SHA-256(date[:10] + "|" + abs(amount) + "|" + desc_lower + "|" + currency)
-    # NEVER change this formula — it would invalidate all historical hashes.
-    payload = f"{date[:10]}|{abs(amount)}|{description.lower()}|{currency}"
-    return hashlib.sha256(payload.encode()).hexdigest()
 
 
 def _to_eur(amount: float, currency: str, rates: dict[str, float]) -> float:
@@ -103,7 +101,7 @@ def _extract_merchant(raw_tx: dict) -> str:
         # remittance_information is an array of strings
         remittance = raw_tx.get("remittance_information", [])
         name = " ".join(remittance) if isinstance(remittance, list) else str(remittance)
-    name = re.sub(r"\s+\d{4,}$", "", name)   # strip trailing card/ref numbers
+    name = re.sub(r"\s+\d{4,}$", "", name)  # strip trailing card/ref numbers
     name = re.sub(r"\s{2,}", " ", name).strip()
     return name or "Unknown"
 
@@ -113,8 +111,8 @@ def _parse_amount(raw_tx: dict) -> float:
     amount_data = raw_tx.get("transaction_amount", {})
     amount = abs(float(amount_data.get("amount", 0)))
     if raw_tx.get("credit_debit_indicator", "DBIT") == "DBIT":
-        return -amount   # outflow
-    return amount        # inflow
+        return -amount  # outflow
+    return amount  # inflow
 
 
 def _description(raw_tx: dict) -> str:
@@ -147,7 +145,7 @@ def normalize(
             description = _description(tx)
             merchant = _extract_merchant(tx)
             eur_amount = _to_eur(amount, currency, ecb_rates)
-            dedup = _dedup_hash(date_str, amount, description, currency)
+            dedup = eb_dedup_hash(date_str, amount, description, currency)
             results.append(
                 NormalizedTransaction(
                     dedup_hash=dedup,

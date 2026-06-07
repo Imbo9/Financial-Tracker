@@ -5,7 +5,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.normalizer.normalize import _dedup_hash, _is_internal, normalize
+from src.normalizer.hash import eb_dedup_hash as _dedup_hash
+from src.normalizer.normalize import _is_internal, normalize
 
 
 class TestDedupHash:
@@ -15,65 +16,83 @@ class TestDedupHash:
         assert h1 == h2
 
     def test_uses_absolute_amount(self):
-        assert _dedup_hash("2024-01-15", -25.50, "shop", "EUR") == \
-               _dedup_hash("2024-01-15", 25.50, "shop", "EUR")
+        assert _dedup_hash("2024-01-15", -25.50, "shop", "EUR") == _dedup_hash(
+            "2024-01-15", 25.50, "shop", "EUR"
+        )
 
     def test_case_insensitive_description(self):
-        assert _dedup_hash("2024-01-15", 10.0, "Coffee Shop", "EUR") == \
-               _dedup_hash("2024-01-15", 10.0, "COFFEE SHOP", "EUR")
+        assert _dedup_hash("2024-01-15", 10.0, "Coffee Shop", "EUR") == _dedup_hash(
+            "2024-01-15", 10.0, "COFFEE SHOP", "EUR"
+        )
 
     def test_only_date_prefix_used(self):
-        assert _dedup_hash("2024-01-15T12:30:00Z", 10.0, "shop", "EUR") == \
-               _dedup_hash("2024-01-15", 10.0, "shop", "EUR")
+        assert _dedup_hash("2024-01-15T12:30:00Z", 10.0, "shop", "EUR") == _dedup_hash(
+            "2024-01-15", 10.0, "shop", "EUR"
+        )
 
     def test_sha256_length(self):
         assert len(_dedup_hash("2024-01-15", 10.0, "shop", "EUR")) == 64
 
     def test_different_amounts_differ(self):
-        assert _dedup_hash("2024-01-15", 10.00, "shop", "EUR") != \
-               _dedup_hash("2024-01-15", 10.01, "shop", "EUR")
+        assert _dedup_hash("2024-01-15", 10.00, "shop", "EUR") != _dedup_hash(
+            "2024-01-15", 10.01, "shop", "EUR"
+        )
 
     def test_different_currencies_differ(self):
-        assert _dedup_hash("2024-01-15", 10.0, "shop", "EUR") != \
-               _dedup_hash("2024-01-15", 10.0, "shop", "USD")
+        assert _dedup_hash("2024-01-15", 10.0, "shop", "EUR") != _dedup_hash(
+            "2024-01-15", 10.0, "shop", "USD"
+        )
 
 
 class TestInternalPatterns:
-    @pytest.mark.parametrize("desc", [
-        "Top-Up by bank transfer",
-        "top up by SEPA",
-        "Exchanged from EUR to USD",
-        "Exchange to GBP",
-        "Savings Vault deposit",
-        "Transfer to vault",
-        "from vault: savings",
-        "Balance migration",
-        "Revolut @username",
-        "Crypto exchange",
-        "Crypto purchase BTC",
-        "Cryptocurrency swap",
-    ])
+    @pytest.mark.parametrize(
+        "desc",
+        [
+            "Top-Up by bank transfer",
+            "top up by SEPA",
+            "Exchanged from EUR to USD",
+            "Exchange to GBP",
+            "Savings Vault deposit",
+            "Transfer to vault",
+            "from vault: savings",
+            "Balance migration",
+            "Revolut @username",
+            "Crypto exchange",
+            "Crypto purchase BTC",
+            "Cryptocurrency swap",
+        ],
+    )
     def test_matches_internal(self, desc):
         assert _is_internal(desc), f"Expected internal: {desc!r}"
 
-    @pytest.mark.parametrize("desc", [
-        "Amazon.it",
-        "ESSELUNGA SPA",
-        "Netflix.com",
-        "Airbnb",
-        "Uber *trip",
-        "Decathlon store",
-        "Spotify Premium",
-        "ATM withdrawal",
-        "Caffè Vergnano",
-    ])
+    @pytest.mark.parametrize(
+        "desc",
+        [
+            "Amazon.it",
+            "ESSELUNGA SPA",
+            "Netflix.com",
+            "Airbnb",
+            "Uber *trip",
+            "Decathlon store",
+            "Spotify Premium",
+            "ATM withdrawal",
+            "Caffè Vergnano",
+        ],
+    )
     def test_does_not_match_real(self, desc):
         assert not _is_internal(desc), f"Incorrectly flagged as internal: {desc!r}"
 
 
 class TestNormalize:
-    def _tx(self, amount="25.50", currency="EUR", date="2024-01-15",
-             indicator="DBIT", creditor="Coffee Shop", status="BOOK"):
+    def _tx(
+        self,
+        amount="25.50",
+        currency="EUR",
+        date="2024-01-15",
+        indicator="DBIT",
+        creditor="Coffee Shop",
+        status="BOOK",
+    ):
         return {
             "booking_date": date,
             "transaction_amount": {"amount": amount, "currency": currency},
@@ -122,14 +141,16 @@ class TestNormalize:
 
     def test_internal_flagged(self):
         # Real Revolut top-up: remittance_information starts with the marker
-        raw = [{
-            "booking_date": "2024-01-15",
-            "transaction_amount": {"amount": "500", "currency": "EUR"},
-            "credit_debit_indicator": "CRDT",
-            "debtor": {"name": "My Bank"},
-            "remittance_information": ["Top-Up by SEPA transfer"],
-            "status": "BOOK",
-        }]
+        raw = [
+            {
+                "booking_date": "2024-01-15",
+                "transaction_amount": {"amount": "500", "currency": "EUR"},
+                "credit_debit_indicator": "CRDT",
+                "debtor": {"name": "My Bank"},
+                "remittance_information": ["Top-Up by SEPA transfer"],
+                "status": "BOOK",
+            }
+        ]
         txs = normalize(raw, "acc1", ecb_rates={})
         assert txs[0].is_internal
 
