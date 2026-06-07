@@ -6,12 +6,16 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.30.0",
+    "apscheduler>=3.10.0",
+    "fastapi>=0.115.0",
     "httpx>=0.28.1",
     "pgvector>=0.4.2",
     "psycopg2-binary>=2.9.9",
+    "pydantic>=2.0.0",
     "python-dotenv>=1.2.2",
     "pyjwt[cryptography]>=2.8.0",
     "cryptography>=48.0.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [project.scripts]
@@ -21,7 +25,9 @@ auth     = "src.auth.enable_banking_auth:main"
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
     "pytest-httpx>=0.35.0",
+    "httpx>=0.28.1",
     "ruff>=0.8.0",
 ]
 
