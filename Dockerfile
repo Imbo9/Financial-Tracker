@@ -32,7 +32,11 @@ RUN touch src/__init__.py \
          src/ingestion/__init__.py \
          src/normalizer/__init__.py \
          src/storage/__init__.py \
-         src/categorizer/__init__.py
+         src/categorizer/__init__.py \
+         src/models/__init__.py \
+         src/notifications/__init__.py \
+         src/server/__init__.py \
+         src/server/routes/__init__.py
 
 # Usa il Python del venv senza attivarlo esplicitamente
 ENV PATH="/app/.venv/bin:$PATH"
