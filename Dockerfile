@@ -50,6 +50,5 @@ RUN mkdir -p /tmp/revolut_pipeline
 RUN useradd -m -u 1000 appuser && chown -R appuser /app /tmp/revolut_pipeline
 USER appuser
 
-# Entry point di default: pipeline completa
-# Override in docker-compose per auth o altri comandi
-CMD ["python", "pipeline.py"]
+# Default: pipeline completa. Railway overrides this via startCommand in railway.toml.
+CMD ["sh", "-c", "uvicorn src.server.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
