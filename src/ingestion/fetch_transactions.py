@@ -15,17 +15,37 @@ import config.settings as settings
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://api.enablebanking.com"
-_INTER_ACCOUNT_DELAY_SEC = 2   # respect 4 calls/account/24h rate limit
+_INTER_ACCOUNT_DELAY_SEC = 2  # respect 4 calls/account/24h rate limit
+
+_jwt_cache: tuple[str, int] | None = None  # (token, exp_epoch)
 
 
 def _make_jwt() -> str:
+    global _jwt_cache
     now = int(time.time())
-    pem = settings.ENABLE_BANKING_PRIVATE_KEY_PATH.read_text()
-    return jwt.encode(
-        {"iss": "enablebanking.com", "aud": "api.enablebanking.com",
-         "iat": now, "exp": now + 3600, "app_id": settings.ENABLE_BANKING_APP_ID},
-        pem, algorithm="RS256", headers={"kid": settings.ENABLE_BANKING_APP_ID},
+    if _jwt_cache and _jwt_cache[1] > now + 60:
+        return _jwt_cache[0]
+    if settings.ENABLE_BANKING_PRIVATE_KEY_B64:
+        import base64
+
+        pem = base64.b64decode(settings.ENABLE_BANKING_PRIVATE_KEY_B64).decode()
+    else:
+        pem = settings.ENABLE_BANKING_PRIVATE_KEY_PATH.read_text()
+    exp = now + 3600
+    token = jwt.encode(
+        {
+            "iss": "enablebanking.com",
+            "aud": "api.enablebanking.com",
+            "iat": now,
+            "exp": exp,
+            "app_id": settings.ENABLE_BANKING_APP_ID,
+        },
+        pem,
+        algorithm="RS256",
+        headers={"kid": settings.ENABLE_BANKING_APP_ID},
     )
+    _jwt_cache = (token, exp)
+    return token
 
 
 def _headers() -> dict:
@@ -63,7 +83,12 @@ def _fetch_account_transactions(
     while True:
         try:
             data = _get(client, f"/accounts/{account_uid}/transactions", **params)
-        except httpx.HTTPStatusError as exc:
+        except (
+            httpx.HTTPStatusError,
+            httpx.TimeoutException,
+            httpx.ConnectError,
+            httpx.ReadError,
+        ) as exc:
             log.warning("Error fetching transactions for account %s: %s", account_uid[:8], exc)
             break
         all_txs.extend(data.get("transactions", []))
@@ -78,8 +103,10 @@ def _fetch_account_transactions(
 
 def fetch_transactions(days_back: int | None = None) -> dict[str, list[dict]]:
     """Return {account_uid: [raw_transaction, ...]} for all accounts."""
-    if not settings.ENABLE_BANKING_ACCESS_TOKEN:
-        raise EnvironmentError("ENABLE_BANKING_ACCESS_TOKEN not set — run auth first")
+    if not settings.ENABLE_BANKING_PRIVATE_KEY_PATH.exists():
+        raise EnvironmentError(
+            f"Private key not found at {settings.ENABLE_BANKING_PRIVATE_KEY_PATH} — run auth first"
+        )
     if days_back is None:
         days_back = settings.FETCH_DAYS_BACK
     date_to = date.today()

@@ -39,3 +39,13 @@ DATABASE_URL: str = _get("DATABASE_URL", "postgresql://user:changeme@localhost:5
 # Pipeline
 FETCH_DAYS_BACK: int = int(_get("FETCH_DAYS_BACK", "90"))
 LOG_LEVEL: str = _get("LOG_LEVEL", "INFO")
+
+# Telegram
+TELEGRAM_TOKEN: str = _get("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID: str = _get("TELEGRAM_CHAT_ID")
+
+# Webhook
+WEBHOOK_SECRET: str = _get("WEBHOOK_SECRET")
+
+# Enable Banking — base64 private key for cloud deployments (overrides file path)
+ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")
