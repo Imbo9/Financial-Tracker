@@ -29,8 +29,19 @@ CREATE TABLE IF NOT EXISTS transactions (
     category      TEXT,
     subcategory   TEXT,
     embedding     vector(1536),
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status        TEXT        NOT NULL DEFAULT 'verified',
+    source        TEXT        NOT NULL DEFAULT 'enable_banking',
+    source_id     TEXT
 );
+
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status    TEXT NOT NULL DEFAULT 'verified';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS source    TEXT NOT NULL DEFAULT 'enable_banking';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS source_id TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_transactions_pending
+    ON transactions (status, booking_date)
+    WHERE status = 'pending';
 
 CREATE INDEX IF NOT EXISTS idx_tx_booking_date ON transactions (booking_date DESC);
 CREATE INDEX IF NOT EXISTS idx_tx_is_internal  ON transactions (is_internal);
