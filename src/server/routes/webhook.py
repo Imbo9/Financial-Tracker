@@ -1,3 +1,4 @@
+import hmac
 import logging
 import sys
 from contextlib import contextmanager
@@ -31,7 +32,10 @@ async def tasker_webhook(
     payload: TaskerPayload,
     x_webhook_secret: str | None = Header(default=None),
 ) -> dict:
-    if x_webhook_secret != settings.WEBHOOK_SECRET:
+    if not hmac.compare_digest(
+        (x_webhook_secret or "").encode(),
+        settings.WEBHOOK_SECRET.encode(),
+    ):
         raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
     tx = parse_tasker_payload(payload)
