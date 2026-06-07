@@ -1,20 +1,18 @@
 import logging
 import re
 import sys
-from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+from src.models.transaction import NormalizedTransaction
 from src.normalizer.hash import eb_dedup_hash
 
 log = logging.getLogger(__name__)
 
-# Seven patterns for Revolut-internal moves — stored with is_internal=TRUE,
-# excluded from the real_transactions view. Do not add patterns that could
-# match real merchant transactions.
 INTERNAL_PATTERNS = [
     re.compile(r"^top[\s\-]?up\b", re.IGNORECASE),
     re.compile(r"^exchanged?\s+(from|to)\b", re.IGNORECASE),
@@ -51,29 +49,13 @@ def fetch_ecb_rates() -> dict[str, float]:
             if obs:
                 raw_value = list(obs.values())[-1][0]
                 if raw_value is None:
-                    continue  # ECB gap (holiday/weekend) — skip this currency
+                    continue
                 fresh[currency] = float(raw_value)
         _ecb_cache.update(fresh)
         log.info("Loaded ECB rates for %d currencies", len(_ecb_cache))
     except Exception as exc:
         log.warning("Failed to fetch ECB rates: %s", exc)
     return _ecb_cache
-
-
-@dataclass
-class NormalizedTransaction:
-    dedup_hash: str
-    booking_date: str  # YYYY-MM-DDT00:00:00Z
-    amount: float  # negative = outflow, positive = inflow
-    currency: str
-    eur_amount: float
-    description: str
-    merchant_name: str  # cleaned — only this is sent to the categorizer
-    account_id: str
-    is_internal: bool
-    category: str | None = None
-    subcategory: str | None = None
-    raw: dict = field(default_factory=dict)
 
 
 def _to_eur(amount: float, currency: str, rates: dict[str, float]) -> float:
@@ -91,28 +73,25 @@ def _is_internal(description: str) -> bool:
 
 
 def _extract_merchant(raw_tx: dict) -> str:
-    # Enable Banking uses creditor.name for debits, debtor.name for credits
     indicator = raw_tx.get("credit_debit_indicator", "DBIT")
     if indicator == "DBIT":
         name = (raw_tx.get("creditor") or {}).get("name", "")
     else:
         name = (raw_tx.get("debtor") or {}).get("name", "")
     if not name:
-        # remittance_information is an array of strings
         remittance = raw_tx.get("remittance_information", [])
         name = " ".join(remittance) if isinstance(remittance, list) else str(remittance)
-    name = re.sub(r"\s+\d{4,}$", "", name)  # strip trailing card/ref numbers
+    name = re.sub(r"\s+\d{4,}$", "", name)
     name = re.sub(r"\s{2,}", " ", name).strip()
     return name or "Unknown"
 
 
 def _parse_amount(raw_tx: dict) -> float:
-    # amount is always a positive string; sign comes from credit_debit_indicator
     amount_data = raw_tx.get("transaction_amount", {})
     amount = abs(float(amount_data.get("amount", 0)))
     if raw_tx.get("credit_debit_indicator", "DBIT") == "DBIT":
-        return -amount  # outflow
-    return amount  # inflow
+        return -amount
+    return amount
 
 
 def _description(raw_tx: dict) -> str:
@@ -132,7 +111,6 @@ def normalize(
     results = []
     for tx in raw_transactions:
         try:
-            # Only sync booked transactions (PDNG and INFO are skipped)
             if tx.get("status") not in ("BOOK", None):
                 continue
             date_str = tx.get("booking_date", "")
@@ -141,7 +119,12 @@ def normalize(
                 continue
             currency = (tx.get("transaction_amount") or {}).get("currency", "EUR")
             amount = _parse_amount(tx)
-            booking_date = f"{date_str[:10]}T00:00:00Z"
+            booking_date = datetime(
+                int(date_str[:4]),
+                int(date_str[5:7]),
+                int(date_str[8:10]),
+                tzinfo=timezone.utc,
+            )
             description = _description(tx)
             merchant = _extract_merchant(tx)
             eur_amount = _to_eur(amount, currency, ecb_rates)
@@ -157,7 +140,8 @@ def normalize(
                     merchant_name=merchant,
                     account_id=account_id,
                     is_internal=_is_internal(description),
-                    raw=tx,
+                    status="verified",
+                    source="enable_banking",
                 )
             )
         except Exception as exc:

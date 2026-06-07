@@ -112,15 +112,19 @@ class TestNormalize:
         assert txs[0].amount == 25.50
 
     def test_basic(self):
+        from datetime import datetime, timezone
+
         txs = normalize([self._tx()], "acc1", ecb_rates={})
         assert len(txs) == 1
         t = txs[0]
         assert t.currency == "EUR"
         assert t.eur_amount == -25.50
-        assert t.booking_date == "2024-01-15T00:00:00Z"
+        assert t.booking_date == datetime(2024, 1, 15, 0, 0, 0, tzinfo=timezone.utc)
         assert t.account_id == "acc1"
         assert not t.is_internal
         assert len(t.dedup_hash) == 64
+        assert t.status == "verified"
+        assert t.source == "enable_banking"
 
     def test_skips_missing_date(self):
         raw = [{"transaction_amount": {"amount": "10", "currency": "EUR"}, "status": "BOOK"}]
