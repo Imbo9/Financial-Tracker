@@ -52,5 +52,4 @@ USER appuser
 
 # Entry point di default: pipeline completa
 # Override in docker-compose per auth o altri comandi
-ENTRYPOINT ["python", "pipeline.py"]
-CMD []
+CMD ["python", "pipeline.py"]
