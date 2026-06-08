@@ -101,3 +101,53 @@ class TestTransactionsList:
         ):
             resp = client.get("/transactions?search=costa", headers={"X-Webhook-Secret": _SECRET})
         assert resp.status_code == 200
+
+
+class TestCreateTransaction:
+    def test_missing_auth_returns_401(self, client):
+        resp = client.post("/transactions", json={})
+        assert resp.status_code == 401
+
+    def test_missing_required_fields_returns_422(self, client):
+        resp = client.post(
+            "/transactions",
+            json={"amount": -5.0},
+            headers={"X-Webhook-Secret": _SECRET},
+        )
+        assert resp.status_code == 422
+
+    def test_create_returns_201(self, client):
+        body = {
+            "booking_date": "2026-06-08T12:00:00Z",
+            "amount": -12.50,
+            "currency": "EUR",
+            "eur_amount": -12.50,
+            "merchant_name": "Costa Coffee",
+            "category": "Eating Out",
+        }
+        returned_row = dict(
+            FAKE_ROW,
+            id=99,
+            amount=-12.50,
+            eur_amount=-12.50,
+            merchant_name="Costa Coffee",
+            category="Eating Out",
+            source="manual",
+        )
+        mock_cur = MagicMock()
+        mock_cur.rowcount = 1
+        mock_cur.fetchone.return_value = returned_row
+        mock_cur.__enter__ = lambda s: s
+        mock_cur.__exit__ = MagicMock(return_value=False)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        with patch("src.server.routes.api.get_connection", return_value=mock_conn):
+            resp = client.post(
+                "/transactions",
+                json=body,
+                headers={"X-Webhook-Secret": _SECRET},
+            )
+
+        assert resp.status_code == 201
+        assert resp.json()["merchant_name"] == "Costa Coffee"

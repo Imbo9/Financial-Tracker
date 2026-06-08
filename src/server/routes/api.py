@@ -2,20 +2,49 @@ import hmac
 import logging
 import sys
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 
 import psycopg2.extras
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 import config.settings as settings
+from src.normalizer.hash import manual_dedup_hash
 from src.storage.db_insert import get_connection
 
 log = logging.getLogger(__name__)
 router = APIRouter()
+
+_INSERT_RETURN = """
+INSERT INTO transactions
+    (dedup_hash, booking_date, amount, currency, eur_amount,
+     description, merchant_name, account_id, is_internal, category, subcategory,
+     status, source, source_id)
+VALUES
+    (%(dedup_hash)s, %(booking_date)s, %(amount)s, %(currency)s, %(eur_amount)s,
+     %(description)s, %(merchant_name)s, %(account_id)s, %(is_internal)s,
+     %(category)s, %(subcategory)s, %(status)s, %(source)s, %(source_id)s)
+ON CONFLICT (dedup_hash) DO NOTHING
+RETURNING id, dedup_hash, booking_date, amount, currency, eur_amount,
+          description, merchant_name, account_id, is_internal,
+          category, subcategory, status, source, created_at
+"""
+
+
+class ManualTransactionIn(BaseModel):
+    booking_date: datetime
+    amount: float
+    currency: str = "EUR"
+    eur_amount: float
+    merchant_name: str | None = None
+    description: str | None = None
+    account_id: str | None = None
+    category: str | None = None
+    subcategory: str | None = None
 
 
 def _require_auth(x_webhook_secret: str | None = Header(default=None)) -> None:
@@ -90,3 +119,38 @@ async def list_transactions(
             rows = [_row_to_dict(r) for r in cur.fetchall()]
 
     return {"items": rows, "total": total, "page": page, "page_size": page_size}
+
+
+@router.post("/transactions", status_code=201)
+async def create_transaction(
+    body: ManualTransactionIn,
+    _: Annotated[None, Depends(_require_auth)],
+) -> dict:
+    dedup = manual_dedup_hash(body.booking_date.isoformat(), body.amount, body.currency)
+    row_data = {
+        "dedup_hash": dedup,
+        "booking_date": body.booking_date,
+        "amount": body.amount,
+        "currency": body.currency,
+        "eur_amount": body.eur_amount,
+        "description": body.description,
+        "merchant_name": body.merchant_name,
+        "account_id": body.account_id,
+        "is_internal": False,
+        "category": body.category,
+        "subcategory": body.subcategory,
+        "status": "verified",
+        "source": "manual",
+        "source_id": None,
+    }
+
+    with _get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(_INSERT_RETURN, row_data)
+            conn.commit()
+            row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=409, detail="Duplicate transaction")
+
+    return _row_to_dict(row)

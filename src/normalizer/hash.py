@@ -14,3 +14,8 @@ def tasker_dedup_hash(timestamp: datetime, amount: float, currency: str) -> str:
     minute = timestamp.strftime("%Y-%m-%dT%H:%M")
     payload = f"tasker|{minute}|{abs(amount)}|{currency}"
     return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def manual_dedup_hash(booking_date: str, amount: float, currency: str) -> str:
+    payload = f"manual|{booking_date[:19]}|{abs(amount)}|{currency}"
+    return hashlib.sha256(payload.encode()).hexdigest()

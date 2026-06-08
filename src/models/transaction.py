@@ -21,5 +21,5 @@ class NormalizedTransaction(BaseModel):
     category: str | None = None
     subcategory: str | None = None
     status: Literal["pending", "verified"] = "verified"
-    source: Literal["tasker", "enable_banking"] = "enable_banking"
+    source: Literal["tasker", "enable_banking", "manual"] = "enable_banking"
     source_id: str | None = None
