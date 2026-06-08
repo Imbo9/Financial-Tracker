@@ -2,6 +2,17 @@
 config/.env
 config/private_key.pem
 config/callback.html
+config/revolut_private.key
+config/revolut.csr
+config/signing.der
+config/transport.der
+config/jwks.json
+**/.env
+*.pem
+*.key
+*.der
+*.csr
+.mcp.json
 
 # Python
 .venv/

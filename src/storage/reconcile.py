@@ -18,6 +18,7 @@ WHERE status = 'pending'
   AND amount = %s
   AND currency = %s
   AND booking_date::date = %s::date
+ORDER BY created_at ASC
 LIMIT 1
 """
 

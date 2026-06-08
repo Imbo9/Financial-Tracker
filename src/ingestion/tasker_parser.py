@@ -13,7 +13,15 @@ from src.normalizer.hash import tasker_dedup_hash
 _AMT = r"\d+(?:[.,]\d+)*"  # matches "0.13" or "1,234.56" without trailing dot
 
 _PATTERNS: list[tuple[str, re.Pattern]] = [
-    # "Sent you EUR0.13. Tap to say thank you 💰"
+    # "Rosalia sent you EUR0.01. Tap to say thank you 💰"
+    (
+        "credit",
+        re.compile(
+            rf"(?P<merchant>.+?)\s+sent you (?P<ccy>[A-Z]{{3}})(?P<amount>{_AMT})",
+            re.IGNORECASE,
+        ),
+    ),
+    # "Sent you EUR0.13. Tap to say thank you 💰"  (no sender name)
     ("credit", re.compile(rf"Sent you (?P<ccy>[A-Z]{{3}})(?P<amount>{_AMT})", re.IGNORECASE)),
     # "You paid EUR5.00 at Costa Coffee"
     (
@@ -90,10 +98,11 @@ def parse_tasker_payload(payload: TaskerPayload) -> NormalizedTransaction:
         parsed = _parse_raw_text(payload.raw_text or "")
         if parsed:
             amount, currency, merchant, _dir = parsed
+            merchant = merchant or payload.merchant  # fallback to notification title
         else:
             amount = 0.0
             currency = payload.currency or "EUR"
-            merchant = None
+            merchant = payload.merchant  # notification title from MacroDroid {not_title}
 
     dedup = tasker_dedup_hash(payload.device_timestamp, abs(amount), currency)
 

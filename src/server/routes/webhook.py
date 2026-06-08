@@ -44,10 +44,10 @@ async def tasker_webhook(
 
     if not _verify_signature(body_bytes, x_signature):
         raise HTTPException(status_code=401, detail="Invalid signature")
-
     try:
         payload = TaskerPayload.model_validate(json.loads(body_bytes))
     except Exception as exc:
+        log.warning("Webhook validation error: %s", exc)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     tx = parse_tasker_payload(payload)

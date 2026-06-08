@@ -83,7 +83,8 @@ class _CallbackHandler(BaseHTTPRequestHandler):
                 _CallbackHandler.done = True
                 self.send_response(400)
                 self.end_headers()
-                self.wfile.write(f"<h2>Error: {error}</h2><p>Close this tab and check the terminal.</p>".encode())
+                msg = f"<h2>Error: {error}</h2><p>Close this tab and check the terminal.</p>"
+                self.wfile.write(msg.encode())
             else:
                 _CallbackHandler.received_code = (
                     params.get("code", params.get("access_token", [None]))[0]

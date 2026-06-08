@@ -43,7 +43,7 @@ def _categorize_batch(client: anthropic.Anthropic, merchants: list[str]) -> list
     try:
         response = client.messages.create(
             model=MODEL,
-            max_tokens=1024,
+            max_tokens=4096,
             system=[
                 {
                     "type": "text",
@@ -55,7 +55,10 @@ def _categorize_batch(client: anthropic.Anthropic, merchants: list[str]) -> list
         )
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
-            raw = raw.split("```")[1].lstrip("json").strip()
+            parts = raw.split("```")
+            # odd-indexed parts are inside fences; find the JSON array block
+            json_blocks = [p.lstrip("json").strip() for p in parts[1::2]]
+            raw = next((b for b in json_blocks if b.startswith("[")), json_blocks[0])
         return json.loads(raw)
     except Exception as exc:
         log.warning("Categorization batch failed: %s", exc)
@@ -91,6 +94,11 @@ def categorize_uncategorized(conn) -> int:
         merchants = [r[1] or "Unknown" for r in batch]
         results = _categorize_batch(client, merchants)
 
+        if len(results) < len(ids):
+            log.warning(
+                "Batch %d/%d: Claude returned %d results for %d merchants — truncated response?",
+                i // BATCH_SIZE + 1, n_batches, len(results), len(ids),
+            )
         update_data = [
             (r.get("category"), r.get("subcategory"), row_id)
             for row_id, r in zip(ids, results)

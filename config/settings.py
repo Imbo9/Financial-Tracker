@@ -30,8 +30,8 @@ ENABLE_BANKING_SESSION_ID: str = _get("ENABLE_BANKING_SESSION_ID")
 ENABLE_BANKING_ACCESS_TOKEN: str = _get("ENABLE_BANKING_ACCESS_TOKEN")
 ENABLE_BANKING_ACCOUNT_IDS: list[str] = json.loads(_get("ENABLE_BANKING_ACCOUNT_IDS") or "[]")
 
-# Anthropic
-ANTHROPIC_API_KEY: str = _require("ANTHROPIC_API_KEY")
+# Anthropic — only needed by the categorizer pipeline, not the server
+ANTHROPIC_API_KEY: str = _get("ANTHROPIC_API_KEY")
 
 # Database
 DATABASE_URL: str = _get("DATABASE_URL", "postgresql://user:changeme@localhost:5432/finance")
