@@ -151,3 +151,25 @@ class TestCreateTransaction:
 
         assert resp.status_code == 201
         assert resp.json()["merchant_name"] == "Costa Coffee"
+
+    def test_duplicate_returns_409(self, client):
+        mock_cur = MagicMock()
+        mock_cur.fetchone.return_value = None  # simulate ON CONFLICT DO NOTHING
+        mock_cur.__enter__ = lambda s: s
+        mock_cur.__exit__ = MagicMock(return_value=False)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        body = {
+            "booking_date": "2026-06-08T12:00:00Z",
+            "amount": -12.50,
+            "currency": "EUR",
+            "eur_amount": -12.50,
+        }
+        with patch("src.server.routes.api.get_connection", return_value=mock_conn):
+            resp = client.post(
+                "/transactions",
+                json=body,
+                headers={"X-Webhook-Secret": _SECRET},
+            )
+        assert resp.status_code == 409

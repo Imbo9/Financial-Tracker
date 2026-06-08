@@ -147,8 +147,8 @@ async def create_transaction(
     with _get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(_INSERT_RETURN, row_data)
-            conn.commit()
             row = cur.fetchone()
+        conn.commit()
 
     if row is None:
         raise HTTPException(status_code=409, detail="Duplicate transaction")

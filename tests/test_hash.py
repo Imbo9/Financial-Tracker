@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.normalizer.hash import eb_dedup_hash, tasker_dedup_hash
+from src.normalizer.hash import eb_dedup_hash, manual_dedup_hash, tasker_dedup_hash
 
 
 class TestEbDedupHash:
@@ -68,3 +68,35 @@ class TestTaskerDedupHash:
         ts1 = datetime(2024, 1, 15, 14, 32, 0, tzinfo=timezone.utc)
         ts2 = datetime(2024, 1, 15, 14, 32, 45, tzinfo=timezone.utc)
         assert tasker_dedup_hash(ts1, 12.50, "EUR") == tasker_dedup_hash(ts2, 12.50, "EUR")
+
+
+class TestManualDedupHash:
+    def test_deterministic(self):
+        h1 = manual_dedup_hash("2026-06-08T12:00:00", 12.5, "EUR")
+        h2 = manual_dedup_hash("2026-06-08T12:00:00", 12.5, "EUR")
+        assert h1 == h2
+
+    def test_amount_sign_invariant(self):
+        # positive and negative amounts with same magnitude -> same hash
+        h_pos = manual_dedup_hash("2026-06-08T12:00:00", 12.5, "EUR")
+        h_neg = manual_dedup_hash("2026-06-08T12:00:00", -12.5, "EUR")
+        assert h_pos == h_neg
+
+    def test_different_amounts_differ(self):
+        h1 = manual_dedup_hash("2026-06-08T12:00:00", 12.5, "EUR")
+        h2 = manual_dedup_hash("2026-06-08T12:00:00", 99.0, "EUR")
+        assert h1 != h2
+
+    def test_truncates_to_seconds(self):
+        # datetime with sub-second precision truncated to [:19]
+        h1 = manual_dedup_hash("2026-06-08T12:00:00.123456+00:00", 12.5, "EUR")
+        h2 = manual_dedup_hash("2026-06-08T12:00:00", 12.5, "EUR")
+        assert h1 == h2
+
+    def test_differs_from_tasker_hash(self):
+        from datetime import datetime, timezone
+
+        dt = datetime(2026, 6, 8, 12, 0, tzinfo=timezone.utc)
+        manual_h = manual_dedup_hash("2026-06-08T12:00:00", 12.5, "EUR")
+        tasker_h = tasker_dedup_hash(dt, 12.5, "EUR")
+        assert manual_h != tasker_h
