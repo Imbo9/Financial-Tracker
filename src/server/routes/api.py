@@ -53,8 +53,8 @@ async def list_transactions(
     direction: str | None = Query(default=None, pattern="^(income|expense)$"),
     search: str | None = None,
 ) -> dict:
-    conditions = ["booking_date >= NOW() - INTERVAL '%s days'"]
-    params: list[Any] = [days_back]
+    conditions = [f"booking_date >= NOW() - INTERVAL '{days_back} days'"]
+    params: list[Any] = []
 
     if category:
         conditions.append("category = %s")

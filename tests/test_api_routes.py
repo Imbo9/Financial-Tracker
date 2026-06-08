@@ -81,3 +81,23 @@ class TestTransactionsList:
         ):
             resp = client.get("/transactions", headers={"X-Webhook-Secret": _SECRET})
         assert resp.json()["page"] == 1
+
+    def test_direction_income_filters_positive_amounts(self, client):
+        with patch(
+            "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
+        ):
+            resp = client.get(
+                "/transactions?direction=income", headers={"X-Webhook-Secret": _SECRET}
+            )
+        assert resp.status_code == 200
+
+    def test_direction_invalid_returns_422(self, client):
+        resp = client.get("/transactions?direction=both", headers={"X-Webhook-Secret": _SECRET})
+        assert resp.status_code == 422
+
+    def test_search_filter_accepted(self, client):
+        with patch(
+            "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
+        ):
+            resp = client.get("/transactions?search=costa", headers={"X-Webhook-Secret": _SECRET})
+        assert resp.status_code == 200
