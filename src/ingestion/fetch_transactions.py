@@ -103,7 +103,10 @@ def _fetch_account_transactions(
 
 def fetch_transactions(days_back: int | None = None) -> dict[str, list[dict]]:
     """Return {account_uid: [raw_transaction, ...]} for all accounts."""
-    if not settings.ENABLE_BANKING_PRIVATE_KEY_PATH.exists():
+    if (
+        not settings.ENABLE_BANKING_PRIVATE_KEY_B64
+        and not settings.ENABLE_BANKING_PRIVATE_KEY_PATH.exists()
+    ):
         raise EnvironmentError(
             f"Private key not found at {settings.ENABLE_BANKING_PRIVATE_KEY_PATH} — run auth first"
         )
