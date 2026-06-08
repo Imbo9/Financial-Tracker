@@ -21,13 +21,13 @@ def create_app() -> FastAPI:
     app.include_router(sync_router)
 
     scheduler = BackgroundScheduler()
-    scheduler.add_job(run_eb_sync, "interval", hours=6, id="eb_sync")
+    scheduler.add_job(run_eb_sync, "cron", hour="0,6,12,18", minute=0, id="eb_sync")
 
     @app.on_event("startup")
     def start_scheduler() -> None:
         if not scheduler.running:
             scheduler.start()
-        log.info("APScheduler started — EB sync every 6h")
+        log.info("APScheduler started — EB sync at 00:00, 06:00, 12:00, 18:00 UTC")
 
     @app.on_event("shutdown")
     def stop_scheduler() -> None:
