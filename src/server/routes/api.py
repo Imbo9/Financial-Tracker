@@ -3,9 +3,11 @@ import logging
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException
+import psycopg2.extras
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
@@ -39,3 +41,52 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
         if hasattr(v, "isoformat"):
             out[k] = v.isoformat()
     return out
+
+
+@router.get("/transactions")
+async def list_transactions(
+    _: Annotated[None, Depends(_require_auth)],
+    page: Annotated[int, Field(ge=1)] = 1,
+    page_size: Annotated[int, Field(ge=1, le=200)] = 50,
+    days_back: Annotated[int, Field(ge=1, le=365)] = 30,
+    category: str | None = None,
+    direction: str | None = Query(default=None, pattern="^(income|expense)$"),
+    search: str | None = None,
+) -> dict:
+    conditions = ["booking_date >= NOW() - INTERVAL '%s days'"]
+    params: list[Any] = [days_back]
+
+    if category:
+        conditions.append("category = %s")
+        params.append(category)
+    if direction == "income":
+        conditions.append("amount > 0")
+    elif direction == "expense":
+        conditions.append("amount < 0")
+    if search:
+        conditions.append("(merchant_name ILIKE %s OR description ILIKE %s)")
+        params.extend([f"%{search}%", f"%{search}%"])
+
+    where = " AND ".join(conditions)
+    offset = (page - 1) * page_size
+
+    with _get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"SELECT COUNT(*) AS total FROM real_transactions WHERE {where}",
+                params,
+            )
+            total = cur.fetchone()["total"]
+            cur.execute(
+                f"""SELECT id, dedup_hash, booking_date, amount, currency, eur_amount,
+                           description, merchant_name, account_id, is_internal,
+                           category, subcategory, status, source, created_at
+                    FROM real_transactions
+                    WHERE {where}
+                    ORDER BY booking_date DESC
+                    LIMIT %s OFFSET %s""",
+                params + [page_size, offset],
+            )
+            rows = [_row_to_dict(r) for r in cur.fetchall()]
+
+    return {"items": rows, "total": total, "page": page, "page_size": page_size}
