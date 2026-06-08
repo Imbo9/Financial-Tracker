@@ -218,3 +218,27 @@ class TestStats:
         assert data[0]["income"] == 2198.80
         assert data[0]["expenses"] == 114.25
         assert abs(data[0]["net"] - (2198.80 - 114.25)) < 0.01
+
+
+FAKE_ACCOUNT_ROW = {"account_id": "revolut-main", "balance": 1234.56}
+
+
+class TestAccounts:
+    def test_missing_auth_returns_401(self, client):
+        resp = client.get("/accounts")
+        assert resp.status_code == 401
+
+    def test_returns_accounts_list(self, client):
+        with patch(
+            "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_ACCOUNT_ROW])
+        ):
+            resp = client.get("/accounts", headers={"X-Webhook-Secret": _SECRET})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "assets" in data
+        assert "liabilities" in data
+        assert "accounts" in data
+        assert len(data["accounts"]) == 1
+        assert data["accounts"][0]["account_id"] == "revolut-main"
+        assert data["accounts"][0]["balance"] == 1234.56
