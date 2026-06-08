@@ -46,7 +46,7 @@ async def tasker_webhook(
     if inserted:
         notify_transaction(tx, token=settings.TELEGRAM_TOKEN, chat_id=settings.TELEGRAM_CHAT_ID)
         log.info("Tasker webhook: inserted %s", tx.dedup_hash[:8])
-        return {"status": "ok", "dedup_hash": tx.dedup_hash}
+        return {"status": "ok"}
 
     log.info("Tasker webhook: duplicate skipped %s", tx.dedup_hash[:8])
-    return {"status": "skipped", "dedup_hash": tx.dedup_hash}
+    return {"status": "skipped"}

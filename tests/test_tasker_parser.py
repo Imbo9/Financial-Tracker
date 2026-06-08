@@ -122,3 +122,26 @@ class TestParseRawText:
         assert tx.amount == 0.13
         assert tx.currency == "EUR"
         assert tx.status == "pending"
+
+    def test_eur_paid_to_pattern(self):
+        result = _parse_raw_text("EUR5.00 paid to Costa Coffee")
+        assert result is not None
+        amount, ccy, merchant, direction = result
+        assert amount == -5.00
+        assert ccy == "EUR"
+        assert merchant == "Costa Coffee"
+        assert direction == "debit"
+
+    def test_eur_from_name_credit_pattern(self):
+        result = _parse_raw_text("EUR5.00 from Mario Rossi")
+        assert result is not None
+        amount, ccy, merchant, direction = result
+        assert amount == 5.00
+        assert ccy == "EUR"
+        assert merchant == "Mario Rossi"
+        assert direction == "credit"
+
+    def test_it_locale_amount_parsing(self):
+        result = _parse_raw_text("You paid EUR1.234,56 at Esselunga")
+        assert result is not None
+        assert result[0] == -1234.56

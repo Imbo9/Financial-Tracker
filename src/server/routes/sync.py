@@ -6,7 +6,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
+from typing import Annotated
+
 from fastapi import APIRouter, Header, HTTPException
+from pydantic import Field
 
 import config.settings as settings
 from src.server.scheduler import run_eb_sync
@@ -18,7 +21,7 @@ router = APIRouter()
 @router.post("/sync")
 async def trigger_sync(
     x_webhook_secret: str | None = Header(default=None),
-    days_back: int = 2,
+    days_back: Annotated[int, Field(ge=1, le=90)] = 2,
 ) -> dict:
     if not hmac.compare_digest(
         (x_webhook_secret or "").encode(),

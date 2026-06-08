@@ -16,7 +16,9 @@ log = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Revolut Finance Ingestion")
+    app = FastAPI(
+        title="Revolut Finance Ingestion", docs_url=None, redoc_url=None, openapi_url=None
+    )
     app.include_router(webhook_router)
     app.include_router(sync_router)
 

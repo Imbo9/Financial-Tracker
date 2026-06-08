@@ -115,7 +115,11 @@ def normalize(
                 continue
             date_str = tx.get("booking_date", "")
             if not date_str:
-                log.warning("Transaction missing booking_date, skipping: %s", tx)
+                log.warning(
+                    "Transaction missing booking_date, skipping: amount=%s ccy=%s",
+                    (tx.get("transaction_amount") or {}).get("amount"),
+                    (tx.get("transaction_amount") or {}).get("currency"),
+                )
                 continue
             currency = (tx.get("transaction_amount") or {}).get("currency", "EUR")
             amount = _parse_amount(tx)
@@ -145,5 +149,10 @@ def normalize(
                 )
             )
         except Exception as exc:
-            log.warning("Failed to normalize transaction: %s — %s", tx, exc)
+            log.warning(
+                "Failed to normalize transaction: amount=%s ccy=%s — %s",
+                (tx.get("transaction_amount") or {}).get("amount"),
+                (tx.get("transaction_amount") or {}).get("currency"),
+                exc,
+            )
     return results

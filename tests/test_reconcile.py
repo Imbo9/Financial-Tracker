@@ -87,3 +87,21 @@ class TestReconcileOrInsert:
 
         result = reconcile_or_insert(conn, _tx())
         assert result.action == "skipped"
+
+    def test_reconciled_keep_hash_when_eb_already_exists(self):
+        """eb_already_exists=True uses _UPDATE_TO_VERIFIED_KEEP_HASH (no dedup_hash swap)."""
+        conn = MagicMock()
+        cur = MagicMock()
+        # Step 1: _FIND_PENDING_MATCH → (99, "old_hash")
+        # Step 1b: _CHECK_ID_FOR_HASH → (42,) — EB hash already in DB as separate row
+        cur.fetchone.side_effect = [(99, "old_hash"), (42,)]
+        cur.rowcount = 1
+        conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
+        conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+        result = reconcile_or_insert(conn, _tx())
+        assert result.action == "reconciled"
+        assert result.match.pending_id == 99
+        # keep-hash UPDATE passes 6 args (no dedup_hash), not 7
+        update_args = cur.execute.call_args_list[-1][0][1]
+        assert len(update_args) == 6

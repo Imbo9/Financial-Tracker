@@ -62,3 +62,17 @@ class TestSendTelegram:
         with patch("src.notifications.telegram.httpx.post") as mock_post:
             send_telegram("test message", token="", chat_id="123")
             mock_post.assert_not_called()
+
+    def test_send_exception_is_swallowed(self):
+        with patch("src.notifications.telegram.httpx.post", side_effect=Exception("timeout")):
+            send_telegram("test", token="tok", chat_id="123")  # must not raise
+
+    def test_notify_transaction_delegates(self):
+        from src.notifications.telegram import notify_transaction
+
+        with patch("src.notifications.telegram.send_telegram") as mock_send:
+            notify_transaction(
+                _tx(amount=-5.0, merchant_name="Netflix"), token="tok", chat_id="123"
+            )
+            mock_send.assert_called_once()
+            assert "Netflix" in mock_send.call_args[0][0]
