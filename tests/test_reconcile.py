@@ -52,8 +52,9 @@ class TestReconcileOrInsert:
     def test_reconciled_when_pending_match_found(self):
         conn = MagicMock()
         cur = MagicMock()
-        # Step 1: _FIND_PENDING_MATCH returns (99, "old_hash") — reconcile immediately
-        cur.fetchone.side_effect = [(99, "old_hash")]
+        # Step 1: _FIND_PENDING_MATCH → (99, "old_hash")
+        # Step 1b: _CHECK_ID_FOR_HASH → None (EB hash not yet in DB)
+        cur.fetchone.side_effect = [(99, "old_hash"), None]
         cur.rowcount = 1
         conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
         conn.cursor.return_value.__exit__ = MagicMock(return_value=False)

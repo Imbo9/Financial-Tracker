@@ -33,6 +33,20 @@ SET dedup_hash   = %s,
 WHERE id = %s
 """
 
+# Used when the EB dedup_hash already exists in a separate row — keep Tasker's own hash.
+_UPDATE_TO_VERIFIED_KEEP_HASH = """
+UPDATE transactions
+SET status       = 'verified',
+    booking_date = %s,
+    merchant_name = COALESCE(%s, merchant_name),
+    account_id   = COALESCE(%s, account_id),
+    source       = %s,
+    source_id    = %s
+WHERE id = %s
+"""
+
+_CHECK_ID_FOR_HASH = "SELECT id FROM transactions WHERE dedup_hash = %s LIMIT 1"
+
 _INSERT = """
 INSERT INTO transactions
     (dedup_hash, booking_date, amount, currency, eur_amount,
@@ -55,19 +69,39 @@ def reconcile_or_insert(conn, tx: NormalizedTransaction) -> ReconciliationResult
 
     if match_row:
         pending_id, pending_hash = match_row
+        # If EB hash already exists as a separate row (e.g. from a prior sync before this fix),
+        # keep the Tasker dedup_hash to avoid a UniqueViolation.
         with conn.cursor() as cur:
-            cur.execute(
-                _UPDATE_TO_VERIFIED,
-                (
-                    tx.dedup_hash,
-                    tx.booking_date,
-                    tx.merchant_name,
-                    tx.account_id,
-                    tx.source,
-                    tx.source_id,
-                    pending_id,
-                ),
-            )
+            cur.execute(_CHECK_ID_FOR_HASH, (tx.dedup_hash,))
+            eb_already_exists = cur.fetchone() is not None
+
+        if eb_already_exists:
+            with conn.cursor() as cur:
+                cur.execute(
+                    _UPDATE_TO_VERIFIED_KEEP_HASH,
+                    (
+                        tx.booking_date,
+                        tx.merchant_name,
+                        tx.account_id,
+                        tx.source,
+                        tx.source_id,
+                        pending_id,
+                    ),
+                )
+        else:
+            with conn.cursor() as cur:
+                cur.execute(
+                    _UPDATE_TO_VERIFIED,
+                    (
+                        tx.dedup_hash,
+                        tx.booking_date,
+                        tx.merchant_name,
+                        tx.account_id,
+                        tx.source,
+                        tx.source_id,
+                        pending_id,
+                    ),
+                )
         conn.commit()
         log.info("Reconciled pending #%d → verified (%s)", pending_id, tx.dedup_hash[:8])
         return ReconciliationResult(
