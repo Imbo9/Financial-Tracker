@@ -47,16 +47,8 @@ ON CONFLICT (dedup_hash) DO NOTHING
 
 
 def reconcile_or_insert(conn, tx: NormalizedTransaction) -> ReconciliationResult:
-    """Process one EB transaction: skip if verified, reconcile if pending match, else insert."""
-    # Step 1: check if this exact EB transaction is already verified
-    with conn.cursor() as cur:
-        cur.execute(_CHECK_EXISTING, (tx.dedup_hash,))
-        row = cur.fetchone()
-
-    if row is not None and row[0] == "verified":
-        return ReconciliationResult(match=None, action="skipped")
-
-    # Step 2: check for a pending Tasker row matching amount + currency + ±10min
+    """Process one EB transaction: reconcile pending if match, skip if verified, else insert."""
+    # Step 1: check for a pending Tasker row matching amount + currency + same day
     with conn.cursor() as cur:
         cur.execute(_FIND_PENDING_MATCH, (tx.amount, tx.currency, tx.booking_date))
         match_row = cur.fetchone()
@@ -83,7 +75,15 @@ def reconcile_or_insert(conn, tx: NormalizedTransaction) -> ReconciliationResult
             action="reconciled",
         )
 
-    # Step 3: no existing verified row, no pending match — insert fresh
+    # Step 2: no pending match — check if already verified
+    with conn.cursor() as cur:
+        cur.execute(_CHECK_EXISTING, (tx.dedup_hash,))
+        row = cur.fetchone()
+
+    if row is not None and row[0] == "verified":
+        return ReconciliationResult(match=None, action="skipped")
+
+    # Step 3: not verified, no pending match — insert fresh
     with conn.cursor() as cur:
         cur.execute(_INSERT, tx.model_dump())
         inserted = cur.rowcount > 0
