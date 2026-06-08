@@ -17,7 +17,7 @@ FROM transactions
 WHERE status = 'pending'
   AND amount = %s
   AND currency = %s
-  AND ABS(EXTRACT(EPOCH FROM (booking_date - %s))) <= 600
+  AND booking_date::date = %s::date
 LIMIT 1
 """
 
