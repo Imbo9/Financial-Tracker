@@ -44,7 +44,7 @@ class TestBuildMessage:
 
     def test_debit_verified(self):
         msg = build_message(_tx(amount=-12.50, status="verified", merchant_name="Netflix"))
-        assert "🟢" in msg
+        assert "🔴" in msg
         assert "12.50" in msg
 
 

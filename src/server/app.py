@@ -21,7 +21,15 @@ def create_app() -> FastAPI:
     app.include_router(sync_router)
 
     scheduler = BackgroundScheduler(timezone="Europe/Rome")
-    scheduler.add_job(run_eb_sync, "cron", hour="0,6,12,18", minute=0, id="eb_sync")
+    scheduler.add_job(
+        run_eb_sync,
+        "cron",
+        hour="0,6,12,18",
+        minute=0,
+        id="eb_sync",
+        max_instances=1,
+        misfire_grace_time=300,
+    )
 
     @app.on_event("startup")
     def start_scheduler() -> None:

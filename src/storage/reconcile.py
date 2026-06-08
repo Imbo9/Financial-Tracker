@@ -30,7 +30,7 @@ SET dedup_hash   = %s,
     account_id   = COALESCE(%s, account_id),
     source       = %s,
     source_id    = %s
-WHERE id = %s
+WHERE id = %s AND status = 'pending'
 """
 
 # Used when the EB dedup_hash already exists in a separate row — keep Tasker's own hash.
@@ -42,7 +42,7 @@ SET status       = 'verified',
     account_id   = COALESCE(%s, account_id),
     source       = %s,
     source_id    = %s
-WHERE id = %s
+WHERE id = %s AND status = 'pending'
 """
 
 _CHECK_ID_FOR_HASH = "SELECT id FROM transactions WHERE dedup_hash = %s LIMIT 1"

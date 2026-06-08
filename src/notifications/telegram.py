@@ -17,8 +17,6 @@ def build_message(tx: NormalizedTransaction) -> str:
     if tx.amount == 0.0 and tx.merchant_name is None:
         return "⚠️ Notifica Revolut non parsata — controlla raw_text in DB"
     sign = "🔴" if tx.amount < 0 else "🟢"
-    if tx.status == "verified":
-        sign = "🟢"
     merchant = tx.merchant_name or "?"
     amount_str = f"{abs(tx.amount):.2f} {tx.currency}"
     return f"{sign} {'-' if tx.amount < 0 else '+'}{amount_str} · {merchant} [{tx.status}]"

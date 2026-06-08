@@ -45,7 +45,7 @@ TELEGRAM_TOKEN: str = _get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID: str = _get("TELEGRAM_CHAT_ID")
 
 # Webhook
-WEBHOOK_SECRET: str = _get("WEBHOOK_SECRET")
+WEBHOOK_SECRET: str = _require("WEBHOOK_SECRET")
 
 # Enable Banking — base64 private key for cloud deployments (overrides file path)
 ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")

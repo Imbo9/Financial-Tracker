@@ -56,7 +56,12 @@ def _parse_raw_text(raw_text: str) -> tuple[float, str, str | None, str] | None:
         m = pat.search(raw_text)
         if m:
             ccy = m.group("ccy").upper()
-            amt_str = m.group("amount").replace(",", ".")
+            raw = m.group("amount")
+            # Normalise locale: "1.234,56" (IT) → "1234.56", "1,234.56" (EN) → "1234.56"
+            if "," in raw and raw.rindex(",") > raw.rfind("."):
+                amt_str = raw.replace(".", "").replace(",", ".")
+            else:
+                amt_str = raw.replace(",", "")
             try:
                 amt = float(amt_str)
             except ValueError:
