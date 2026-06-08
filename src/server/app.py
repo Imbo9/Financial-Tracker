@@ -8,6 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from src.server.routes.sync import router as sync_router
 from src.server.routes.webhook import router as webhook_router
 from src.server.scheduler import run_eb_sync
 
@@ -17,6 +18,7 @@ log = logging.getLogger(__name__)
 def create_app() -> FastAPI:
     app = FastAPI(title="Revolut Finance Ingestion")
     app.include_router(webhook_router)
+    app.include_router(sync_router)
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_eb_sync, "interval", hours=6, id="eb_sync")
