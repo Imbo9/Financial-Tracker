@@ -2,6 +2,7 @@ import os
 
 # Set required env vars before any module-level settings import
 os.environ.setdefault("WEBHOOK_SECRET", "test-webhook-secret-for-pytest!!")  # 32 chars
+os.environ.setdefault("API_SECRET", "test-api-secret-for-pytest-tests!!")  # 32 chars
 os.environ.setdefault("DATABASE_URL", "postgresql://user:changeme@localhost:5432/finance")
 os.environ.setdefault("TELEGRAM_TOKEN", "test-token")
 os.environ.setdefault("TELEGRAM_CHAT_ID", "123456")

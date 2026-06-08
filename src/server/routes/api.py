@@ -50,7 +50,7 @@ class ManualTransactionIn(BaseModel):
 def _require_auth(x_webhook_secret: str | None = Header(default=None)) -> None:
     if not hmac.compare_digest(
         (x_webhook_secret or "").encode(),
-        settings.WEBHOOK_SECRET.encode(),
+        settings.API_SECRET.encode(),
     ):
         raise HTTPException(status_code=401, detail="Unauthorized")
 

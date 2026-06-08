@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-_SECRET = "test-webhook-secret-for-pytest!!"
+_SECRET = "test-api-secret-for-pytest-tests!!"  # matches API_SECRET in conftest.py
 
 FAKE_ROW = {
     "id": 1,
