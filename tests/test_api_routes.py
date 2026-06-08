@@ -173,3 +173,48 @@ class TestCreateTransaction:
                 headers={"X-Webhook-Secret": _SECRET},
             )
         assert resp.status_code == 409
+
+
+FAKE_CATEGORY_ROW = {"category": "Eating Out", "total": 16.00, "count": 2}
+FAKE_MONTHLY_ROW = {
+    "month": "2026-06",
+    "income": 2198.80,
+    "expenses": 114.25,
+}
+
+
+class TestStats:
+    def test_categories_missing_auth_returns_401(self, client):
+        resp = client.get("/stats/categories")
+        assert resp.status_code == 401
+
+    def test_categories_returns_list_with_percentages(self, client):
+        with patch(
+            "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_CATEGORY_ROW])
+        ):
+            resp = client.get("/stats/categories", headers={"X-Webhook-Secret": _SECRET})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["category"] == "Eating Out"
+        assert data[0]["total"] == 16.00
+        assert data[0]["count"] == 2
+        assert data[0]["percentage"] == 100.0
+
+    def test_monthly_missing_auth_returns_401(self, client):
+        resp = client.get("/stats/monthly")
+        assert resp.status_code == 401
+
+    def test_monthly_returns_list_with_net(self, client):
+        with patch(
+            "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_MONTHLY_ROW])
+        ):
+            resp = client.get("/stats/monthly", headers={"X-Webhook-Secret": _SECRET})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["income"] == 2198.80
+        assert data[0]["expenses"] == 114.25
+        assert abs(data[0]["net"] - (2198.80 - 114.25)) < 0.01

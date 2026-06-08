@@ -154,3 +154,51 @@ async def create_transaction(
         raise HTTPException(status_code=409, detail="Duplicate transaction")
 
     return _row_to_dict(row)
+
+
+@router.get("/stats/categories")
+async def stats_categories(
+    _: Annotated[None, Depends(_require_auth)],
+    days_back: Annotated[int, Field(ge=1, le=365)] = 30,
+) -> list[dict]:
+    with _get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"""SELECT COALESCE(category, 'Uncategorized') AS category,
+                          ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total,
+                          COUNT(*) AS count
+                   FROM real_transactions
+                   WHERE amount < 0
+                     AND booking_date >= NOW() - INTERVAL '{days_back} days'
+                   GROUP BY category
+                   ORDER BY total DESC""",
+            )
+            rows = [dict(r) for r in cur.fetchall()]
+
+    grand_total = sum(float(r["total"]) for r in rows) or 1
+    for r in rows:
+        r["percentage"] = round(float(r["total"]) / grand_total * 100, 1)
+    return rows
+
+
+@router.get("/stats/monthly")
+async def stats_monthly(
+    _: Annotated[None, Depends(_require_auth)],
+    months: Annotated[int, Field(ge=1, le=24)] = 12,
+) -> list[dict]:
+    with _get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"""SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
+                          ROUND(SUM(CASE WHEN amount > 0 THEN eur_amount ELSE 0 END)::numeric, 2) AS income,
+                          ROUND(SUM(CASE WHEN amount < 0 THEN ABS(eur_amount) ELSE 0 END)::numeric, 2) AS expenses
+                   FROM real_transactions
+                   GROUP BY DATE_TRUNC('month', booking_date)
+                   ORDER BY DATE_TRUNC('month', booking_date) DESC
+                   LIMIT {months}""",
+            )
+            rows = [dict(r) for r in cur.fetchall()]
+
+    for r in rows:
+        r["net"] = round(float(r["income"]) - float(r["expenses"]), 2)
+    return rows
