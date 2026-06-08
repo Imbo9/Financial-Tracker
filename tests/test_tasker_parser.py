@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.ingestion.tasker_parser import parse_tasker_payload
+from src.ingestion.tasker_parser import _parse_raw_text, parse_tasker_payload
 from src.models.tasker import TaskerPayload
 
 
@@ -71,3 +71,54 @@ class TestParseTaskerPayload:
     def test_eur_amount_equals_amount_for_eur(self):
         tx = parse_tasker_payload(_payload(currency="EUR", amount="12.50", direction="debit"))
         assert tx.eur_amount == -12.50
+
+
+class TestParseRawText:
+    def test_sent_you_credit(self):
+        result = _parse_raw_text("Sent you EUR0.13. Tap to say thank you 💰")
+        assert result is not None
+        amount, ccy, merchant, direction = result
+        assert amount == 0.13
+        assert ccy == "EUR"
+        assert direction == "credit"
+
+    def test_sent_you_credit_larger(self):
+        result = _parse_raw_text("Sent you EUR12.50. Tap to say thank you 💰")
+        assert result is not None
+        assert result[0] == 12.50
+        assert result[1] == "EUR"
+
+    def test_you_paid_at_merchant(self):
+        result = _parse_raw_text("You paid EUR5.00 at Costa Coffee")
+        assert result is not None
+        amount, ccy, merchant, direction = result
+        assert amount == -5.00
+        assert ccy == "EUR"
+        assert merchant == "Costa Coffee"
+        assert direction == "debit"
+
+    def test_you_sent_to_name(self):
+        result = _parse_raw_text("You sent EUR0.01 to Mario Rossi")
+        assert result is not None
+        amount, ccy, merchant, direction = result
+        assert amount == -0.01
+        assert ccy == "EUR"
+        assert merchant == "Mario Rossi"
+        assert direction == "debit"
+
+    def test_unrecognized_returns_none(self):
+        assert _parse_raw_text("Benvenuto in Revolut!") is None
+        assert _parse_raw_text("") is None
+
+    def test_fallback_parse_on_failed_status(self):
+        p = _payload(
+            raw_text="Sent you EUR0.13. Tap to say thank you 💰",
+            parse_status="failed",
+            amount=None,
+            merchant=None,
+            direction=None,
+        )
+        tx = parse_tasker_payload(p)
+        assert tx.amount == 0.13
+        assert tx.currency == "EUR"
+        assert tx.status == "pending"
