@@ -51,7 +51,7 @@ class TestWebhookEndpoint:
             resp = client.post(
                 "/webhook/tasker",
                 json=VALID_PAYLOAD,
-                headers={"X-Webhook-Secret": "test-secret"},
+                headers={"X-Webhook-Secret": "test-webhook-secret-for-pytest!!"},
             )
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
@@ -67,7 +67,7 @@ class TestWebhookEndpoint:
             resp = client.post(
                 "/webhook/tasker",
                 json=VALID_PAYLOAD,
-                headers={"X-Webhook-Secret": "test-secret"},
+                headers={"X-Webhook-Secret": "test-webhook-secret-for-pytest!!"},
             )
         assert resp.status_code == 200
         assert resp.json()["status"] == "skipped"
@@ -76,6 +76,6 @@ class TestWebhookEndpoint:
         resp = client.post(
             "/webhook/tasker",
             json={"bad": "payload"},
-            headers={"X-Webhook-Secret": "test-secret"},
+            headers={"X-Webhook-Secret": "test-webhook-secret-for-pytest!!"},
         )
         assert resp.status_code == 422

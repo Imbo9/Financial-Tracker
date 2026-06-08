@@ -31,7 +31,7 @@ ENABLE_BANKING_ACCESS_TOKEN: str = _get("ENABLE_BANKING_ACCESS_TOKEN")
 ENABLE_BANKING_ACCOUNT_IDS: list[str] = json.loads(_get("ENABLE_BANKING_ACCOUNT_IDS") or "[]")
 
 # Anthropic
-ANTHROPIC_API_KEY: str = _get("ANTHROPIC_API_KEY")
+ANTHROPIC_API_KEY: str = _require("ANTHROPIC_API_KEY")
 
 # Database
 DATABASE_URL: str = _get("DATABASE_URL", "postgresql://user:changeme@localhost:5432/finance")
@@ -41,11 +41,13 @@ FETCH_DAYS_BACK: int = int(_get("FETCH_DAYS_BACK", "90"))
 LOG_LEVEL: str = _get("LOG_LEVEL", "INFO")
 
 # Telegram
-TELEGRAM_TOKEN: str = _get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID: str = _get("TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN: str = _require("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID: str = _require("TELEGRAM_CHAT_ID")
 
 # Webhook
 WEBHOOK_SECRET: str = _require("WEBHOOK_SECRET")
+if len(WEBHOOK_SECRET) < 32:
+    raise EnvironmentError("WEBHOOK_SECRET must be at least 32 characters")
 
 # Enable Banking — base64 private key for cloud deployments (overrides file path)
 ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")

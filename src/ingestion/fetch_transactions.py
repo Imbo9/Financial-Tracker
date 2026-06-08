@@ -1,5 +1,6 @@
 import logging
 import sys
+import threading
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -17,35 +18,37 @@ log = logging.getLogger(__name__)
 BASE_URL = "https://api.enablebanking.com"
 _INTER_ACCOUNT_DELAY_SEC = 2  # respect 4 calls/account/24h rate limit
 
-_jwt_cache: tuple[str, int] | None = None  # (token, exp_epoch)
+_jwt_cache: tuple[str, int] | None = None
+_jwt_lock = threading.Lock()
 
 
 def _make_jwt() -> str:
     global _jwt_cache
-    now = int(time.time())
-    if _jwt_cache and _jwt_cache[1] > now + 60:
-        return _jwt_cache[0]
-    if settings.ENABLE_BANKING_PRIVATE_KEY_B64:
-        import base64
+    with _jwt_lock:
+        now = int(time.time())
+        if _jwt_cache and _jwt_cache[1] > now + 60:
+            return _jwt_cache[0]
+        if settings.ENABLE_BANKING_PRIVATE_KEY_B64:
+            import base64
 
-        pem = base64.b64decode(settings.ENABLE_BANKING_PRIVATE_KEY_B64).decode()
-    else:
-        pem = settings.ENABLE_BANKING_PRIVATE_KEY_PATH.read_text()
-    exp = now + 3600
-    token = jwt.encode(
-        {
-            "iss": "enablebanking.com",
-            "aud": "api.enablebanking.com",
-            "iat": now,
-            "exp": exp,
-            "app_id": settings.ENABLE_BANKING_APP_ID,
-        },
-        pem,
-        algorithm="RS256",
-        headers={"kid": settings.ENABLE_BANKING_APP_ID},
-    )
-    _jwt_cache = (token, exp)
-    return token
+            pem = base64.b64decode(settings.ENABLE_BANKING_PRIVATE_KEY_B64).decode()
+        else:
+            pem = settings.ENABLE_BANKING_PRIVATE_KEY_PATH.read_text()
+        exp = now + 3600
+        token = jwt.encode(
+            {
+                "iss": "enablebanking.com",
+                "aud": "api.enablebanking.com",
+                "iat": now,
+                "exp": exp,
+                "app_id": settings.ENABLE_BANKING_APP_ID,
+            },
+            pem,
+            algorithm="RS256",
+            headers={"kid": settings.ENABLE_BANKING_APP_ID},
+        )
+        _jwt_cache = (token, exp)
+        return token
 
 
 def _headers() -> dict:
