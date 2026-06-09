@@ -38,6 +38,9 @@
 
 .logoF {
   color: #a78bfa;
+  display: inline-block;
+  transform: scaleY(1.15);
+  transform-origin: 50% 80%;
 }
 
 .logoGradient {
