@@ -77,7 +77,7 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
 async def list_transactions(
     _: Annotated[None, Depends(_require_jwt)],
     page: Annotated[int, Field(ge=1)] = 1,
-    page_size: Annotated[int, Field(ge=1, le=200)] = 50,
+    page_size: Annotated[int, Field(ge=1, le=500)] = 50,
     days_back: Annotated[int, Field(ge=1, le=365)] = 30,
     category: str | None = None,
     direction: str | None = Query(default=None, pattern="^(income|expense)$"),
