@@ -1,4 +1,3 @@
-import hmac
 import logging
 import sys
 from contextlib import contextmanager
@@ -6,8 +5,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 
+import jwt as pyjwt
 import psycopg2.extras
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
@@ -47,11 +47,12 @@ class ManualTransactionIn(BaseModel):
     subcategory: str | None = None
 
 
-def _require_auth(x_webhook_secret: str | None = Header(default=None)) -> None:
-    if not hmac.compare_digest(
-        (x_webhook_secret or "").encode(),
-        settings.API_SECRET.encode(),
-    ):
+def _require_jwt(jwt: str | None = Cookie(default=None)) -> None:
+    if not jwt:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        pyjwt.decode(jwt, settings.JWT_SECRET, algorithms=["HS256"])
+    except pyjwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -74,7 +75,7 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
 
 @router.get("/transactions")
 async def list_transactions(
-    _: Annotated[None, Depends(_require_auth)],
+    _: Annotated[None, Depends(_require_jwt)],
     page: Annotated[int, Field(ge=1)] = 1,
     page_size: Annotated[int, Field(ge=1, le=200)] = 50,
     days_back: Annotated[int, Field(ge=1, le=365)] = 30,
@@ -124,7 +125,7 @@ async def list_transactions(
 @router.post("/transactions", status_code=201)
 async def create_transaction(
     body: ManualTransactionIn,
-    _: Annotated[None, Depends(_require_auth)],
+    _: Annotated[None, Depends(_require_jwt)],
 ) -> dict:
     dedup = manual_dedup_hash(body.booking_date.isoformat(), body.amount, body.currency)
     row_data = {
@@ -158,7 +159,7 @@ async def create_transaction(
 
 @router.get("/stats/categories")
 async def stats_categories(
-    _: Annotated[None, Depends(_require_auth)],
+    _: Annotated[None, Depends(_require_jwt)],
     days_back: Annotated[int, Field(ge=1, le=365)] = 30,
 ) -> list[dict]:
     with _get_conn() as conn:
@@ -183,15 +184,17 @@ async def stats_categories(
 
 @router.get("/stats/monthly")
 async def stats_monthly(
-    _: Annotated[None, Depends(_require_auth)],
+    _: Annotated[None, Depends(_require_jwt)],
     months: Annotated[int, Field(ge=1, le=24)] = 12,
 ) -> list[dict]:
     with _get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 f"""SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
-                          ROUND(SUM(CASE WHEN amount > 0 THEN eur_amount ELSE 0 END)::numeric, 2) AS income,
-                          ROUND(SUM(CASE WHEN amount < 0 THEN ABS(eur_amount) ELSE 0 END)::numeric, 2) AS expenses
+                          ROUND(SUM(CASE WHEN amount > 0
+                              THEN eur_amount ELSE 0 END)::numeric, 2) AS income,
+                          ROUND(SUM(CASE WHEN amount < 0
+                              THEN ABS(eur_amount) ELSE 0 END)::numeric, 2) AS expenses
                    FROM real_transactions
                    GROUP BY DATE_TRUNC('month', booking_date)
                    ORDER BY DATE_TRUNC('month', booking_date) DESC
@@ -206,7 +209,7 @@ async def stats_monthly(
 
 @router.get("/accounts")
 async def list_accounts(
-    _: Annotated[None, Depends(_require_auth)],
+    _: Annotated[None, Depends(_require_jwt)],
 ) -> dict:
     with _get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

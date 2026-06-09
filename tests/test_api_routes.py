@@ -1,14 +1,16 @@
+import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import jwt as pyjwt
 import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-_SECRET = "test-api-secret-for-pytest-tests!!"  # matches API_SECRET in conftest.py
+_JWT_SECRET = os.environ.get("JWT_SECRET", "test-jwt-secret-for-pytest-tests!!!")
 
 FAKE_ROW = {
     "id": 1,
@@ -37,6 +39,20 @@ def client():
     return TestClient(create_app())
 
 
+@pytest.fixture
+def auth_client():
+    from src.server.app import create_app
+
+    c = TestClient(create_app())
+    token = pyjwt.encode(
+        {"sub": "testuser", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+        _JWT_SECRET,
+        algorithm="HS256",
+    )
+    c.cookies.set("jwt", token)
+    return c
+
+
 def _mock_conn(fetchall_result=None, fetchone_result=None):
     mock_cur = MagicMock()
     mock_cur.fetchall.return_value = fetchall_result or []
@@ -57,13 +73,12 @@ class TestTransactionsList:
         resp = client.get("/transactions", headers={"X-Webhook-Secret": "wrong"})
         assert resp.status_code == 401
 
-    def test_returns_paginated_response(self, client):
+    def test_returns_paginated_response(self, auth_client):
         with patch(
             "src.server.routes.api.get_connection",
             return_value=_mock_conn([FAKE_ROW], {"total": 1}),
         ):
-            resp = client.get("/transactions", headers={"X-Webhook-Secret": _SECRET})
-
+            resp = auth_client.get("/transactions")
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] == 1
@@ -71,35 +86,33 @@ class TestTransactionsList:
         assert data["items"][0]["id"] == 1
         assert data["items"][0]["merchant_name"] == "Merchant"
 
-    def test_days_back_above_365_returns_422(self, client):
-        resp = client.get("/transactions?days_back=366", headers={"X-Webhook-Secret": _SECRET})
+    def test_days_back_above_365_returns_422(self, auth_client):
+        resp = auth_client.get("/transactions?days_back=366")
         assert resp.status_code == 422
 
-    def test_page_defaults_to_1(self, client):
+    def test_page_defaults_to_1(self, auth_client):
         with patch(
             "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
         ):
-            resp = client.get("/transactions", headers={"X-Webhook-Secret": _SECRET})
+            resp = auth_client.get("/transactions")
         assert resp.json()["page"] == 1
 
-    def test_direction_income_filters_positive_amounts(self, client):
+    def test_direction_income_filters_positive_amounts(self, auth_client):
         with patch(
             "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
         ):
-            resp = client.get(
-                "/transactions?direction=income", headers={"X-Webhook-Secret": _SECRET}
-            )
+            resp = auth_client.get("/transactions?direction=income")
         assert resp.status_code == 200
 
-    def test_direction_invalid_returns_422(self, client):
-        resp = client.get("/transactions?direction=both", headers={"X-Webhook-Secret": _SECRET})
+    def test_direction_invalid_returns_422(self, auth_client):
+        resp = auth_client.get("/transactions?direction=both")
         assert resp.status_code == 422
 
-    def test_search_filter_accepted(self, client):
+    def test_search_filter_accepted(self, auth_client):
         with patch(
             "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
         ):
-            resp = client.get("/transactions?search=costa", headers={"X-Webhook-Secret": _SECRET})
+            resp = auth_client.get("/transactions?search=costa")
         assert resp.status_code == 200
 
 
@@ -108,15 +121,11 @@ class TestCreateTransaction:
         resp = client.post("/transactions", json={})
         assert resp.status_code == 401
 
-    def test_missing_required_fields_returns_422(self, client):
-        resp = client.post(
-            "/transactions",
-            json={"amount": -5.0},
-            headers={"X-Webhook-Secret": _SECRET},
-        )
+    def test_missing_required_fields_returns_422(self, auth_client):
+        resp = auth_client.post("/transactions", json={"amount": -5.0})
         assert resp.status_code == 422
 
-    def test_create_returns_201(self, client):
+    def test_create_returns_201(self, auth_client):
         body = {
             "booking_date": "2026-06-08T12:00:00Z",
             "amount": -12.50,
@@ -143,18 +152,14 @@ class TestCreateTransaction:
         mock_conn.cursor.return_value = mock_cur
 
         with patch("src.server.routes.api.get_connection", return_value=mock_conn):
-            resp = client.post(
-                "/transactions",
-                json=body,
-                headers={"X-Webhook-Secret": _SECRET},
-            )
+            resp = auth_client.post("/transactions", json=body)
 
         assert resp.status_code == 201
         assert resp.json()["merchant_name"] == "Costa Coffee"
 
-    def test_duplicate_returns_409(self, client):
+    def test_duplicate_returns_409(self, auth_client):
         mock_cur = MagicMock()
-        mock_cur.fetchone.return_value = None  # simulate ON CONFLICT DO NOTHING
+        mock_cur.fetchone.return_value = None
         mock_cur.__enter__ = lambda s: s
         mock_cur.__exit__ = MagicMock(return_value=False)
         mock_conn = MagicMock()
@@ -167,11 +172,7 @@ class TestCreateTransaction:
             "eur_amount": -12.50,
         }
         with patch("src.server.routes.api.get_connection", return_value=mock_conn):
-            resp = client.post(
-                "/transactions",
-                json=body,
-                headers={"X-Webhook-Secret": _SECRET},
-            )
+            resp = auth_client.post("/transactions", json=body)
         assert resp.status_code == 409
 
 
@@ -188,12 +189,11 @@ class TestStats:
         resp = client.get("/stats/categories")
         assert resp.status_code == 401
 
-    def test_categories_returns_list_with_percentages(self, client):
+    def test_categories_returns_list_with_percentages(self, auth_client):
         with patch(
             "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_CATEGORY_ROW])
         ):
-            resp = client.get("/stats/categories", headers={"X-Webhook-Secret": _SECRET})
-
+            resp = auth_client.get("/stats/categories")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -206,12 +206,11 @@ class TestStats:
         resp = client.get("/stats/monthly")
         assert resp.status_code == 401
 
-    def test_monthly_returns_list_with_net(self, client):
+    def test_monthly_returns_list_with_net(self, auth_client):
         with patch(
             "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_MONTHLY_ROW])
         ):
-            resp = client.get("/stats/monthly", headers={"X-Webhook-Secret": _SECRET})
-
+            resp = auth_client.get("/stats/monthly")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -228,12 +227,11 @@ class TestAccounts:
         resp = client.get("/accounts")
         assert resp.status_code == 401
 
-    def test_returns_accounts_list(self, client):
+    def test_returns_accounts_list(self, auth_client):
         with patch(
             "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_ACCOUNT_ROW])
         ):
-            resp = client.get("/accounts", headers={"X-Webhook-Secret": _SECRET})
-
+            resp = auth_client.get("/accounts")
         assert resp.status_code == 200
         data = resp.json()
         assert "assets" in data
