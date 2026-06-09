@@ -52,8 +52,9 @@
 
 .titleF {
   color: #a78bfa;
-  position: relative;
-  top: 0.12em;
+  display: inline-block;
+  transform: scale(0.88);
+  transform-origin: bottom center;
 }
 
 .titleGradient {
