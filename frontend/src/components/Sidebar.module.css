@@ -1,0 +1,130 @@
+.sidebar {
+  width: var(--sidebar-w);
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 16px;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  margin-bottom: 40px;
+}
+
+.logoMark {
+  font-size: 22px;
+  color: var(--accent);
+  line-height: 1;
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+.logoText {
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: baseline;
+}
+
+.logoF {
+  color: var(--accent);
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+
+.logoGradient {
+  background: linear-gradient(to right, var(--text-secondary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.nav {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  transition: color 0.18s var(--ease-out), background 0.18s var(--ease-out);
+}
+
+.link:hover {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+}
+
+.link.active {
+  color: var(--text-primary);
+  background: var(--accent-dim);
+}
+
+.link.active .icon {
+  color: var(--accent);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  transition: color 0.18s;
+}
+
+.label {
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--income);
+  box-shadow: 0 0 6px var(--income);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.footerText {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* Mobile: hide sidebar */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+}

@@ -13,7 +13,10 @@ export function Sidebar() {
     <nav className={styles.sidebar}>
       <div className={styles.logo}>
         <span className={styles.logoMark}>◈</span>
-        <span className={styles.logoText}>Imbook</span>
+        <span className={styles.logoText}>
+          <span className={styles.logoF}>f</span>
+          <span className={styles.logoGradient}>imbook</span>
+        </span>
       </div>
       <ul className={styles.nav}>
         {NAV.map(({ to, label, icon }) => (
