@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+import config.settings as settings
 from src.server.routes.api import router as api_router
 from src.server.routes.auth import router as auth_router
 from src.server.routes.sync import router as sync_router
@@ -25,8 +26,9 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:5173"],
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_origins=[settings.FRONTEND_URL, "http://localhost:5173"],
+        allow_credentials=True,
+        allow_methods=["*"],
         allow_headers=["*"],
     )
 
