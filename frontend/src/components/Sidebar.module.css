@@ -38,6 +38,8 @@
 
 .logoF {
   color: #a78bfa;
+  position: relative;
+  top: 0.12em;
 }
 
 .logoGradient {
