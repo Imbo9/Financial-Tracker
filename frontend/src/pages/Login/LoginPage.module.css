@@ -51,11 +51,11 @@
 }
 
 .titleF {
-  color: var(--accent);
+  color: #a78bfa;
 }
 
 .titleGradient {
-  background: linear-gradient(to right, var(--text-secondary), var(--accent));
+  background: linear-gradient(to right, var(--text-secondary), #a78bfa);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
