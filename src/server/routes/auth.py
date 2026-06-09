@@ -1,3 +1,4 @@
+import hmac
 import logging
 import sys
 from datetime import datetime, timedelta, timezone
@@ -34,7 +35,7 @@ def _make_jwt() -> str:
 
 @router.post("/login")
 def login(body: LoginRequest, response: Response) -> dict:
-    valid = body.username == settings.APP_USERNAME and _verify_password(
+    valid = hmac.compare_digest(body.username, settings.APP_USERNAME) and _verify_password(
         body.password, settings.APP_PASSWORD_HASH
     )
     if not valid:
@@ -52,11 +53,9 @@ def login(body: LoginRequest, response: Response) -> dict:
 
 @router.post("/logout", status_code=204)
 def logout(response: Response) -> None:
-    response.set_cookie(
+    response.delete_cookie(
         key="jwt",
-        value="",
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
-        max_age=0,
     )
