@@ -55,5 +55,17 @@ API_SECRET: str = _require("API_SECRET")
 if len(API_SECRET) < 32:
     raise EnvironmentError("API_SECRET must be at least 32 characters")
 
+# JWT authentication
+APP_USERNAME: str = _require("APP_USERNAME")
+APP_PASSWORD_HASH: str = _require("APP_PASSWORD_HASH")
+JWT_SECRET: str = _require("JWT_SECRET")
+if len(JWT_SECRET) < 32:
+    raise EnvironmentError("JWT_SECRET must be at least 32 characters")
+
+# Cookie settings — override per environment
+FRONTEND_URL: str = _get("FRONTEND_URL", "http://localhost:5173")
+COOKIE_SECURE: bool = _get("COOKIE_SECURE", "true").lower() == "true"
+COOKIE_SAMESITE: str = _get("COOKIE_SAMESITE", "none")
+
 # Enable Banking — base64 private key for cloud deployments (overrides file path)
 ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")
