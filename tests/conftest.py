@@ -2,9 +2,6 @@ import os
 
 # Set required env vars before any module-level settings import
 os.environ.setdefault("WEBHOOK_SECRET", "test-webhook-secret-for-pytest!!")  # 32 chars
-os.environ.setdefault(
-    "API_SECRET", "test-api-secret-for-pytest-tests!!"
-)  # 32 chars — removed later
 os.environ.setdefault("APP_USERNAME", "testuser")
 # Pre-computed bcrypt hash of "testpassword" with 4 rounds (for fast tests)
 # Generated with bcrypt 5.x: bcrypt.hashpw(b"testpassword", bcrypt.gensalt(rounds=4))

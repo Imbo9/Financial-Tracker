@@ -49,12 +49,6 @@ WEBHOOK_SECRET: str = _require("WEBHOOK_SECRET")
 if len(WEBHOOK_SECRET) < 32:
     raise EnvironmentError("WEBHOOK_SECRET must be at least 32 characters")
 
-# API authentication — separate from WEBHOOK_SECRET (HMAC signing key)
-# Set API_SECRET in Railway env; use this value for VITE_API_TOKEN in the frontend.
-API_SECRET: str = _require("API_SECRET")
-if len(API_SECRET) < 32:
-    raise EnvironmentError("API_SECRET must be at least 32 characters")
-
 # JWT authentication
 APP_USERNAME: str = _require("APP_USERNAME")
 APP_PASSWORD_HASH: str = _require("APP_PASSWORD_HASH")
