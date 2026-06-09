@@ -69,8 +69,19 @@ class TestTransactionsList:
         resp = client.get("/transactions")
         assert resp.status_code == 401
 
-    def test_wrong_auth_returns_401(self, client):
-        resp = client.get("/transactions", headers={"X-Webhook-Secret": "wrong"})
+    def test_invalid_jwt_returns_401(self, client):
+        client.cookies.set("jwt", "not.a.valid.jwt")
+        resp = client.get("/transactions")
+        assert resp.status_code == 401
+
+    def test_expired_jwt_returns_401(self, client):
+        token = pyjwt.encode(
+            {"sub": "testuser", "exp": datetime.now(timezone.utc) - timedelta(seconds=1)},
+            _JWT_SECRET,
+            algorithm="HS256",
+        )
+        client.cookies.set("jwt", token)
+        resp = client.get("/transactions")
         assert resp.status_code == 401
 
     def test_returns_paginated_response(self, auth_client):
