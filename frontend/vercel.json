@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://just-comfort-production-4c96.up.railway.app/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
