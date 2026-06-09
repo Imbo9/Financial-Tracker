@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.server.routes.api import router as api_router
+from src.server.routes.auth import router as auth_router
 from src.server.routes.sync import router as sync_router
 from src.server.routes.webhook import router as webhook_router
 from src.server.scheduler import run_eb_sync
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(webhook_router)
     app.include_router(sync_router)
     app.include_router(api_router)
+    app.include_router(auth_router)
 
     scheduler = BackgroundScheduler(timezone="Europe/Rome")
     scheduler.add_job(
