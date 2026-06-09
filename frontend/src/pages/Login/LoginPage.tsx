@@ -34,7 +34,7 @@ export function LoginPage() {
       <div className={styles.backdrop} />
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Ledger</h1>
+          <h1 className={styles.title}>Imbook</h1>
           <div className={styles.subtitle}>Financial Gateway</div>
         </div>
 
