@@ -12,7 +12,7 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import Field
 
 import config.settings as settings
-from src.server.scheduler import run_eb_sync
+from src.sync.eb_sync import run_eb_sync
 
 log = logging.getLogger(__name__)
 router = APIRouter()
