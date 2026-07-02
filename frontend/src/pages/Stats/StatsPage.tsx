@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
-import { api, MOCK_CATEGORY_STATS, MOCK_MONTHLY_STATS } from '../../api/client';
+import { api } from '../../api/client';
 import type { CategoryStat, MonthlyStat } from '../../api/types';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
 import styles from './StatsPage.module.css';
@@ -39,8 +39,8 @@ const CustomTooltip = ({ active, payload }: any) => {
 export function StatsPage() {
   const [_tab, setTab] = useState<Tab>('expenses');
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
-  const [categoryData, setCategoryData] = useState<CategoryStat[]>(MOCK_CATEGORY_STATS);
-  const [monthlyData, setMonthlyData] = useState<MonthlyStat[]>(MOCK_MONTHLY_STATS);
+  const [categoryData, setCategoryData] = useState<CategoryStat[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyStat[]>([]);
 
   useEffect(() => {
     api.stats.categories({ days_back: 30 }).then(setCategoryData).catch(() => {});
