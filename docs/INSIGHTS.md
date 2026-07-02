@@ -24,30 +24,17 @@ The reconciliation layer (`src/storage/reconcile.py`) is the keystone: it conver
 
 ## 3. Known fragilities and blind spots
 
-### Data quality
-- **Missing FX rate = silently wrong data.** `_to_eur` stores the *original* amount as `eur_amount` when ECB has no rate (`normalize.py:61-68`). A THB transaction would inflate spending ~37×. Rare for a EUR/GBP/USD user, but there is no flag on the row marking "unconverted" — once stored, it is indistinguishable from a real EUR amount.
-- **ECB rates cache never expires** (`_ecb_cache` module-level). Fine for the cron process (fresh interpreter per run), but `run_eb_sync` also runs inside the long-lived web server via `POST /sync` — repeated manual syncs over days would use day-one rates.
+> **Update 2026-07-02:** the sanitize-refactor pass (`docs/superpowers/plans/2026-07-02-sanitize-refactor.md`) resolved most of the original items in this section. Resolved: ECB cache TTL (12h), missing-FX-rate severity (now ERROR), session-expiry + sync-failure Telegram alerts, login rate limiting (5 failures / 15 min), INSERT duplication, mid-file import, `scheduler.py` (deleted — sync unified in `src/sync/eb_sync.py`), and the **cron-reconciliation bug** discovered during planning: `pipeline.py` used `insert_transactions` and never reconciled, so pending Tasker rows stayed pending forever and EB rows duplicated them. Both sync paths now share `run_eb_sync`.
+
+### Still open
+- **Missing FX rate stores the original amount** as `eur_amount` (now logged at ERROR, but still no per-row "unconverted" flag). Acceptable for a EUR-centric account; revisit if exotic currencies appear.
 - **Reconciliation matches on `amount + currency + date` only.** Two identical purchases the same day (two €1.20 coffees) reconcile FIFO — consistent but potentially wrong pairing. Merchant names then get overwritten by EB's version via `COALESCE`, which usually fixes it, but the `source_id` linkage could be swapped.
+- **Session renewal itself is still manual** (`enable_banking_auth.py`, needs a browser) — expiry is now *detected* (zero-accounts Telegram alert) but not automated.
+- **Historical duplicates in production** from the pre-fix era may exist: tasker rows never reconciled + separate EB rows. One-time cleanup pending (Task 12 of the refactor plan) — inspect before deleting.
 
-### Operational
-- **The 90-day Enable Banking session is the single point of failure.** Renewal is manual (`enable_banking_auth.py`, needs a browser). When it expires, the batch lane dies silently — the fast lane keeps producing `pending` rows that never verify. There is no expiry alert. *This is the highest-value small improvement available: a Telegram warning at T-7 days, or when a sync returns zero accounts.*
-- **No alert on sync failure.** `run_eb_sync` logs and returns on fetch failure; the cron service equivalent relies on reading Railway logs. Telegram is already wired — failures should page it.
-- **`/auth/login` has no rate limiting.** bcrypt slows brute force and the username check is constant-time, but nothing stops unlimited attempts against the public Railway URL. The project's own coding guidelines call for rate limiting on public endpoints.
+## 4. Uncommitted work
 
-### Code
-- **`api.py` duplicates the INSERT statement.** `_INSERT_RETURN` re-lists all 14 columns because it needs `RETURNING`; `db_insert.INSERT_SQL` is now the shared canonical copy (good uncommitted refactor), but a schema change still has to touch both.
-- **`reconcile.py:51` imports mid-file** (`from src.storage.db_insert import INSERT_SQL as _INSERT` after the SQL constants). Works, DRY-motivated, but a future reader will trip on it — belongs at the top with the other imports.
-- **`scheduler.py` is misnamed post-refactor.** APScheduler is gone; the file now only holds `run_eb_sync` used by `POST /sync`. Renaming to `sync_runner.py` (or moving into `routes/sync.py`) would prevent the "is this dead code?" question — I asked it myself during this analysis.
-
-## 4. State of the uncommitted work (as of this snapshot)
-
-The working tree contains a coherent security-hardening pass that is **finished but not committed**:
-- SQL injection fixes: f-string `INTERVAL '{days_back} days'` and `LIMIT {months}` → parameterized (`api.py`). These were real injectable surfaces (mitigated by FastAPI's `int` coercion, but the pattern was wrong).
-- Webhook 422 no longer echoes the validation exception to the client (`webhook.py`).
-- `INSERT_SQL` extracted and shared between `db_insert.py` and `reconcile.py`.
-- `logging.basicConfig` added to the web server (`app.py`) — previously only `pipeline.py` configured logging, so Railway server logs depended on uvicorn's defaults.
-
-Plus `frontend/` — the entire React app — is untracked but deployed. **The deployed production system is ahead of git.** Committing this should be the next action in any session.
+Resolved 2026-07-02 — the hardening pass, the entire frontend, and the docs were committed as separate commits at the start of the sanitize-refactor. Git and production are in sync again.
 
 ## 5. Test posture
 
@@ -60,7 +47,7 @@ Gaps: no frontend tests at all, and no integration test that exercises the full 
 | Item | Assessment |
 |---|---|
 | Multi-source gateway (Degiro, PayPal, Satispay) | Biggest architectural step; the normalizer/reconciler are Revolut-shaped in places (INTERNAL_PATTERNS, notification parsing) — expect a `source`-dispatch refactor |
-| n8n on Oracle Cloud | Effectively dead (ARM capacity); Railway cron already covers it — candidate for closing out |
+| n8n on Oracle Cloud | Closed 2026-07-02 — Railway cron covers it |
 | Embeddings / semantic search | `vector(1536)` column exists, never populated; pure upside but no consumer yet — YAGNI until a search UI exists |
 | CSV import | Cheap win, reuses the manual-transaction path (`manual_dedup_hash`) |
 | Session renewal automation | Not on the roadmap but should be (see §3 operational) |
