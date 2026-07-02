@@ -168,3 +168,41 @@ class TestNormalize:
         h1 = normalize(raw, "acc1", ecb_rates={})[0].dedup_hash
         h2 = normalize(raw, "acc1", ecb_rates={})[0].dedup_hash
         assert h1 == h2
+
+
+class TestEcbCacheTtl:
+    def _reset(self, mod):
+        mod._ecb_cache.clear()
+        mod._ecb_fetched_at = 0.0
+
+    def test_fresh_cache_skips_refetch(self):
+        import time
+        from unittest.mock import patch
+
+        import src.normalizer.normalize as mod
+
+        self._reset(mod)
+        mod._ecb_cache.update({"USD": 1.1})
+        mod._ecb_fetched_at = time.monotonic()
+        with patch("src.normalizer.normalize.httpx.get") as mock_get:
+            rates = mod.fetch_ecb_rates()
+        mock_get.assert_not_called()
+        assert rates == {"USD": 1.1}
+        self._reset(mod)
+
+    def test_expired_cache_refetches_and_keeps_stale_on_failure(self):
+        import time
+        from unittest.mock import patch
+
+        import src.normalizer.normalize as mod
+
+        self._reset(mod)
+        mod._ecb_cache.update({"USD": 1.1})
+        mod._ecb_fetched_at = time.monotonic() - mod._ECB_TTL_SECONDS - 1
+        with patch(
+            "src.normalizer.normalize.httpx.get", side_effect=Exception("net down")
+        ) as mock_get:
+            rates = mod.fetch_ecb_rates()
+        mock_get.assert_called_once()
+        assert rates == {"USD": 1.1}
+        self._reset(mod)

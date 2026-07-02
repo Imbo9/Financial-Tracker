@@ -1,6 +1,7 @@
 import logging
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,12 +24,15 @@ INTERNAL_PATTERNS = [
     re.compile(r"^(crypto\s+exchange|crypto\s+purchase|cryptocurrency)\b", re.IGNORECASE),
 ]
 
+_ECB_TTL_SECONDS = 12 * 3600  # ECB reference rates update once per day (~16:00 CET)
 _ecb_cache: dict[str, float] = {}
+_ecb_fetched_at: float = 0.0
 
 
 def fetch_ecb_rates() -> dict[str, float]:
     """Return {currency: rate} where 1 EUR = rate CCY (ECB reference rates)."""
-    if _ecb_cache:
+    global _ecb_fetched_at
+    if _ecb_cache and time.monotonic() - _ecb_fetched_at < _ECB_TTL_SECONDS:
         return _ecb_cache
     try:
         url = (
@@ -51,10 +55,12 @@ def fetch_ecb_rates() -> dict[str, float]:
                 if raw_value is None:
                     continue
                 fresh[currency] = float(raw_value)
+        _ecb_cache.clear()
         _ecb_cache.update(fresh)
+        _ecb_fetched_at = time.monotonic()
         log.info("Loaded ECB rates for %d currencies", len(_ecb_cache))
     except Exception as exc:
-        log.warning("Failed to fetch ECB rates: %s", exc)
+        log.warning("Failed to fetch ECB rates: %s", exc)  # stale cache (if any) still returned
     return _ecb_cache
 
 
@@ -63,7 +69,7 @@ def _to_eur(amount: float, currency: str, rates: dict[str, float]) -> float:
         return amount
     rate = rates.get(currency)
     if rate is None:
-        log.warning("No ECB rate for %s — storing original amount as eur_amount", currency)
+        log.error("No ECB rate for %s — storing original amount as eur_amount", currency)
         return amount
     return amount / rate
 
