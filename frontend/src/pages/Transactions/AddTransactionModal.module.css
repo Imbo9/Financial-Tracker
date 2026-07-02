@@ -1,0 +1,142 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 11, 18, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 500;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 0 0;
+}
+
+@media (min-width: 600px) {
+  .backdrop { align-items: center; }
+}
+
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  width: 100%;
+  max-width: 480px;
+  padding: 28px 24px 36px;
+  box-shadow: 0 -24px 80px rgba(0,0,0,0.5);
+}
+
+@media (min-width: 600px) {
+  .modal {
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.typeTabs {
+  display: flex;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.typeTab {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: calc(var(--radius-md) - 2px);
+  color: var(--text-muted);
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.typeTabActive.income  { background: var(--income-dim);  color: var(--income); }
+.typeTabActive.expense { background: var(--expense-dim); color: var(--expense); }
+
+.closeBtn {
+  color: var(--text-muted);
+  transition: color 0.15s;
+  padding: 4px;
+}
+.closeBtn:hover { color: var(--text-primary); }
+
+.form { display: flex; flex-direction: column; gap: 20px; }
+
+.amountRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+.currencyLabel {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 300;
+  color: var(--text-secondary);
+}
+.amountInput {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: 40px;
+  font-weight: 500;
+  color: var(--text-primary);
+  width: 100%;
+}
+.amountInput::placeholder { color: var(--text-muted); }
+
+/* Remove arrows from number input */
+.amountInput::-webkit-outer-spin-button,
+.amountInput::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.fields { display: flex; flex-direction: column; gap: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.fieldLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  -webkit-appearance: none;
+}
+.input:focus { border-color: var(--border-strong); }
+.input::placeholder { color: var(--text-muted); }
+select.input { color: var(--text-primary); }
+select.input option { background: var(--bg-elevated); }
+
+.submitBtn {
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: transform 0.15s, box-shadow 0.15s;
+  margin-top: 4px;
+}
+.submitBtn:hover { transform: translateY(-1px); }
+.submitIncome  { background: var(--income);  color: #000; box-shadow: 0 4px 20px rgba(46,213,115,0.3); }
+.submitExpense { background: var(--expense); color: #fff; box-shadow: 0 4px 20px rgba(255,71,87,0.3); }

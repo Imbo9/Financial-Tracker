@@ -1,0 +1,152 @@
+.page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.header {
+  padding: 32px 28px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.title {
+  font-family: var(--font-ui);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Hero */
+.hero {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 120px;
+  background: radial-gradient(ellipse, rgba(61,142,255,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.heroLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.heroValue {
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.heroSplit {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-top: 12px;
+  width: 100%;
+  max-width: 300px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 12px 20px;
+}
+.heroItem { flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.heroItemLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.heroItemDivider { width: 1px; height: 28px; background: var(--border); margin: 0 16px; }
+
+.income  { color: var(--income);  font-family: var(--font-mono); font-size: 15px; font-weight: 600; }
+.expense { color: var(--expense); font-family: var(--font-mono); font-size: 15px; font-weight: 600; }
+
+/* Account list */
+.listSection {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.sectionTitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.accountRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.accountRow:last-child { border-bottom: none; }
+
+.accountIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.accountInfo { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.accountName { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.accountType { font-family: var(--font-body); font-size: 11px; color: var(--text-muted); text-transform: capitalize; }
+.accountBalance { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--text-primary); }
+
+/* Sync note */
+.syncNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+.syncDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--income);
+  box-shadow: 0 0 6px var(--income);
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .header { padding: 20px 16px 16px; }
+  .main   { padding: 16px; }
+}
