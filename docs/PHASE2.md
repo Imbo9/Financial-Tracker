@@ -1,72 +1,77 @@
-# Phase 2 — design & roadmap (reference)
+# Phase 2 / Phase 3 — design & roadmap (reference)
 
-Reference material moved out of CLAUDE.md to keep it lean. This is the target design;
-nothing here is operational yet. Behavioral contracts that affect current code (e.g. the
-`status` field semantics) stay in CLAUDE.md under "Key invariants".
+Reference material moved out of CLAUDE.md to keep it lean. Tracks what is operational vs pending.
 
-## Target architecture
+## What is operational (as of 2026-06-10)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Neon Postgres (EU Frankfurt) | ✅ Live | project `cool-butterfly-25110592` |
+| FastAPI backend on Railway (`just-comfort`) | ✅ Live | JWT auth, REST API, webhook |
+| MacroDroid → Tasker webhook → Telegram | ✅ Live | ~2s real-time notifications |
+| Enable Banking batch sync 4×/day | ✅ Live | via Railway cron service `sync-cron` |
+| Reconciliation (pending → verified) | ✅ Live | `reconcile_or_insert` |
+| Web dashboard (`fimbook.vercel.app`) | ✅ Live | React/TS, Transactions, Stats, Accounts |
+| JWT auth (httpOnly cookie, Vercel proxy) | ✅ Live | HS256, bcrypt password |
+| AI categorization (Claude Haiku) | ✅ Live | merchant_name only, privacy-safe |
+
+## Architecture (current)
 
 ```
-INPUT SOURCES (agnostic gateway)
-├── Enable Banking / PSD2     → batch every 6h (existing)
-├── Tasker (Android)          → HTTP POST on push notification (~2s latency)
-├── CSV import                → manual bulk import
-└── Future: Degiro, crypto, PayPal, Satispay
-
-        ↓  POST /ingest/{source}  ↓
-
-n8n (self-hosted, Oracle Cloud Always-Free ARM 4vCPU/24GB)
-├── Webhook node              ← receives Tasker payload instantly
-├── Schedule trigger          → runs Enable Banking pipeline every 6h
-├── Postgres node             → writes to Neon (managed, EU, pgvector)
-├── Telegram node             → push notification to phone
-└── Python node               → categorization + reconciliation logic
+INPUT
+├── Enable Banking / PSD2     → Railway cron (sync-cron) every 6h
+└── Tasker (Android)          → POST /webhook/tasker (~2s latency)
 
         ↓
 
-Neon.tech PostgreSQL (EU, free tier, pgvector, always-on)
-├── transactions table (status: pending | verified)
-└── real_transactions view
+FastAPI (just-comfort, Railway)
+├── /webhook/tasker           → parse → DB insert (pending) → Telegram
+├── /sync                     → manual trigger
+├── /transactions, /stats/*   → read API for dashboard
+├── /auth/login|logout        → JWT cookie
+└── APScheduler               → REMOVED (moved to sync-cron)
+
+        ↓
+
+Neon Postgres (EU Frankfurt)
+├── transactions table        (status: pending | verified)
+└── real_transactions view    (is_internal = FALSE)
 
         ↓
 
 OUTPUT
 ├── Telegram Bot              → instant notification on transaction
-├── Dashboard (Vercel)        → spending analytics
-└── Claude API                → categorization + semantic search (future)
+└── Fimbook dashboard         → fimbook.vercel.app (Vercel, React/TS)
 ```
 
-## Hosting (all free except Anthropic API)
+## Vercel proxy pattern
 
-| Component | Service | Cost |
-|-----------|---------|------|
-| Orchestration + webhooks + cron | n8n on Oracle Cloud Always-Free | €0 |
-| Database | Neon.tech (EU, Frankfurt) | €0 |
-| Push notifications | Telegram Bot | €0 |
-| Dashboard | Vercel / GitHub Pages | €0 |
-| AI categorization | Anthropic API (Claude Haiku) | pay-per-use |
+All frontend API calls go to `/api/*` which Vercel rewrites to Railway:
+```json
+{ "source": "/api/:path*", "destination": "https://just-comfort-production-4c96.up.railway.app/:path*" }
+```
+This makes cookies first-party — no SameSite=None/CORS issues.
 
-### Oracle Cloud status
-- Account created, Home Region: Italy Northwest (Milan)
-- ARM A1 capacity exhausted in Milan — retry during off-peak hours (2-6 AM) or use Frankfurt
-- Frankfurt region subscription blocked on new free-tier accounts (region limit)
+## Pending / next steps
+
+1. **Multi-source gateway** — additional accounts (Degiro, crypto, PayPal, Satispay)
+2. **n8n on Oracle Cloud** — still blocked on ARM A1 capacity in Milan; alternative: keep Railway cron
+3. **CSV import** — manual bulk import for historical data from other sources
+4. **Semantic search** — embeddings already in schema (`vector(1536)`), not yet populated
+5. **Dashboard enhancements** — transaction filtering, search, date ranges in UI
+6. **Enable Banking session renewal** — session expires every 90 days, manual renewal via `uv run python src/auth/enable_banking_auth.py`
 
 ## Revolut Developer API (researched, not implemented)
 
 Direct Revolut Open Banking API explored but **not viable for personal use**:
 - Webhooks exist (`TransactionCreated`) but require **eIDAS certificate** (regulated TPP only)
-- No webhooks in the Open Banking scope specifically
-- Sandbox tested: CSR generated (`config/revolut.csr`), JWKs at `https://imbo9.github.io/eb-callback/jwks.json`, Client ID `fb3bdd48-0b01-48dd-a65a-1cbdb81acc3d`, test account `+447253242185 / 0000`
+- Sandbox tested: CSR generated, JWKs at `https://imbo9.github.io/eb-callback/jwks.json`
 - Production blocked by eIDAS — not pursuing
+- **Solution chosen**: Tasker (Android) intercepts Revolut push notifications
 
-**Real-time solution chosen**: Tasker (Android) intercepts Revolut push notifications → HTTP POST to n8n webhook.
+## Oracle Cloud status
 
-## Next steps (ordered)
-
-1. **Migrate DB to Neon** — `pg_dump` local → Neon (EU Frankfurt), update `DATABASE_URL`
-2. **Oracle Cloud VM** — retry ARM A1 in Milan off-peak or Frankfurt; install Docker + n8n
-3. **Telegram Bot** — `@BotFather`, get token, configure n8n Telegram node
-4. **Tasker workflow** — parse Revolut IT push notification regex, POST to n8n webhook
-5. **n8n reconciliation workflow** — Tasker payload → `pending`, Enable Banking batch → `verified`
-6. **Schema migration** — add `status`, `source`, `source_id` to transactions table
-7. **Dashboard** — Vercel, read-only queries on Neon
+- Account created, Home Region: Italy Northwest (Milan)
+- ARM A1 capacity exhausted in Milan — retry during off-peak hours (2-6 AM) or use Frankfurt
+- Frankfurt region subscription blocked on new free-tier accounts
+- Workaround: Railway cron service covers the scheduled sync use case

@@ -4,15 +4,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
 
-import config.settings as settings
-from src.server.routes.api import router as api_router
-from src.server.routes.auth import router as auth_router
-from src.server.routes.sync import router as sync_router
-from src.server.routes.webhook import router as webhook_router
+import config.settings as settings  # noqa: E402
+from src.server.routes.api import router as api_router  # noqa: E402
+from src.server.routes.auth import router as auth_router  # noqa: E402
+from src.server.routes.sync import router as sync_router  # noqa: E402
+from src.server.routes.webhook import router as webhook_router  # noqa: E402
+
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
+    format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
 
 log = logging.getLogger(__name__)
 

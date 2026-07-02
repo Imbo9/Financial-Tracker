@@ -48,17 +48,7 @@ WHERE id = %s AND status = 'pending'
 
 _CHECK_ID_FOR_HASH = "SELECT id FROM transactions WHERE dedup_hash = %s LIMIT 1"
 
-_INSERT = """
-INSERT INTO transactions
-    (dedup_hash, booking_date, amount, currency, eur_amount,
-     description, merchant_name, account_id, is_internal, category, subcategory,
-     status, source, source_id)
-VALUES
-    (%(dedup_hash)s, %(booking_date)s, %(amount)s, %(currency)s, %(eur_amount)s,
-     %(description)s, %(merchant_name)s, %(account_id)s, %(is_internal)s,
-     %(category)s, %(subcategory)s, %(status)s, %(source)s, %(source_id)s)
-ON CONFLICT (dedup_hash) DO NOTHING
-"""
+from src.storage.db_insert import INSERT_SQL as _INSERT  # noqa: E402
 
 
 def reconcile_or_insert(conn, tx: NormalizedTransaction) -> ReconciliationResult:

@@ -43,6 +43,10 @@ build/
 .claude/
 CLAUDE.md
 SKILL.md
+.playwright-mcp/
+
+# Screenshot temporanei (sessioni /verify e /run)
+ledger-*.png
 
 # OS
 .DS_Store

@@ -51,7 +51,7 @@ CREATE OR REPLACE VIEW real_transactions AS
     SELECT * FROM transactions WHERE is_internal = FALSE;
 """
 
-_INSERT = """
+INSERT_SQL = """
 INSERT INTO transactions
     (dedup_hash, booking_date, amount, currency, eur_amount,
      description, merchant_name, account_id, is_internal, category, subcategory,
@@ -80,7 +80,7 @@ def insert_transactions(conn, transactions: list[NormalizedTransaction]) -> int:
         return 0
     rows = [t.model_dump() for t in transactions]
     with conn.cursor() as cur:
-        psycopg2.extras.execute_batch(cur, _INSERT, rows, page_size=200)
+        psycopg2.extras.execute_batch(cur, INSERT_SQL, rows, page_size=200)
     conn.commit()
     log.info("Upserted %d rows (duplicates silently skipped)", len(rows))
     return len(rows)
@@ -89,7 +89,7 @@ def insert_transactions(conn, transactions: list[NormalizedTransaction]) -> int:
 def insert_transaction(conn, tx: NormalizedTransaction) -> bool:
     """Insert one transaction. Returns True if inserted, False if duplicate."""
     with conn.cursor() as cur:
-        cur.execute(_INSERT, tx.model_dump())
+        cur.execute(INSERT_SQL, tx.model_dump())
         inserted = cur.rowcount > 0
     conn.commit()
     return inserted

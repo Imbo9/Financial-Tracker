@@ -83,8 +83,8 @@ async def list_transactions(
     direction: str | None = Query(default=None, pattern="^(income|expense)$"),
     search: str | None = None,
 ) -> dict:
-    conditions = [f"booking_date >= NOW() - INTERVAL '{days_back} days'"]
-    params: list[Any] = []
+    conditions = ["booking_date >= NOW() - (%s * INTERVAL '1 day')"]
+    params: list[Any] = [days_back]
 
     if category:
         conditions.append("category = %s")
@@ -165,14 +165,15 @@ async def stats_categories(
     with _get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                f"""SELECT COALESCE(category, 'Uncategorized') AS category,
+                """SELECT COALESCE(category, 'Uncategorized') AS category,
                           ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total,
                           COUNT(*) AS count
                    FROM real_transactions
                    WHERE amount < 0
-                     AND booking_date >= NOW() - INTERVAL '{days_back} days'
+                     AND booking_date >= NOW() - (%s * INTERVAL '1 day')
                    GROUP BY category
                    ORDER BY total DESC""",
+                (days_back,),
             )
             rows = [dict(r) for r in cur.fetchall()]
 
@@ -190,7 +191,7 @@ async def stats_monthly(
     with _get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                f"""SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
+                """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
                           ROUND(SUM(CASE WHEN amount > 0
                               THEN eur_amount ELSE 0 END)::numeric, 2) AS income,
                           ROUND(SUM(CASE WHEN amount < 0
@@ -198,7 +199,8 @@ async def stats_monthly(
                    FROM real_transactions
                    GROUP BY DATE_TRUNC('month', booking_date)
                    ORDER BY DATE_TRUNC('month', booking_date) DESC
-                   LIMIT {months}""",
+                   LIMIT %s""",
+                (months,),
             )
             rows = [dict(r) for r in cur.fetchall()]
 
