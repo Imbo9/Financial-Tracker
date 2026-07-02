@@ -53,8 +53,6 @@ class TestLogout:
         assert not client.cookies.get("jwt")
 
 
-
-
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
     auth_module._clear_failures()

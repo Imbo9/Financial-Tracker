@@ -97,7 +97,10 @@ def categorize_uncategorized(conn) -> int:
         if len(results) < len(ids):
             log.warning(
                 "Batch %d/%d: Claude returned %d results for %d merchants — truncated response?",
-                i // BATCH_SIZE + 1, n_batches, len(results), len(ids),
+                i // BATCH_SIZE + 1,
+                n_batches,
+                len(results),
+                len(ids),
             )
         update_data = [
             (r.get("category"), r.get("subcategory"), row_id)

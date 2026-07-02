@@ -86,9 +86,9 @@ class _CallbackHandler(BaseHTTPRequestHandler):
                 msg = f"<h2>Error: {error}</h2><p>Close this tab and check the terminal.</p>"
                 self.wfile.write(msg.encode())
             else:
-                _CallbackHandler.received_code = (
-                    params.get("code", params.get("access_token", [None]))[0]
-                )
+                _CallbackHandler.received_code = params.get(
+                    "code", params.get("access_token", [None])
+                )[0]
                 _CallbackHandler.done = True
                 self.send_response(200)
                 self.end_headers()
@@ -170,6 +170,7 @@ def main() -> None:
     env_path = root / "config" / ".env"
 
     from dotenv import load_dotenv
+
     load_dotenv(env_path)
 
     app_id = os.getenv("ENABLE_BANKING_APP_ID", "").strip()
@@ -207,9 +208,9 @@ def main() -> None:
     _CallbackHandler.done = False
     server = HTTPServer(("", CALLBACK_PORT), _CallbackHandler)
     server.timeout = 1
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"SESSION URL (torna qui se rimani bloccato):\n{auth_url}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     webbrowser.open(auth_url)
     log.info("Waiting for OAuth callback on localhost:%d  (Ctrl+C to abort) ...", CALLBACK_PORT)
     while not _CallbackHandler.done:
