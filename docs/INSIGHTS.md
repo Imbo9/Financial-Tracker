@@ -30,7 +30,8 @@ The reconciliation layer (`src/storage/reconcile.py`) is the keystone: it conver
 - **Missing FX rate stores the original amount** as `eur_amount` (now logged at ERROR, but still no per-row "unconverted" flag). Acceptable for a EUR-centric account; revisit if exotic currencies appear.
 - **Reconciliation matches on `amount + currency + date` only.** Two identical purchases the same day (two €1.20 coffees) reconcile FIFO — consistent but potentially wrong pairing. Merchant names then get overwritten by EB's version via `COALESCE`, which usually fixes it, but the `source_id` linkage could be swapped.
 - **Session renewal itself is still manual** (`enable_banking_auth.py`, needs a browser) — expiry is now *detected* (zero-accounts Telegram alert) but not automated.
-- **Historical duplicates in production** from the pre-fix era may exist: tasker rows never reconciled + separate EB rows. One-time cleanup pending (Task 12 of the refactor plan) — inspect before deleting.
+- ~~**Historical duplicates in production**~~ Inspected 2026-07-02: zero tasker/EB duplicate pairs existed; 7 junk pending rows (test artifacts + amount-0 notification noise) deleted with user approval.
+- **Tasker parser ingests non-payment notifications.** "Verify a payment" prompts and "Auto top-up" notices parse to amount 0.00 and sit in the pending queue forever (observed in production, ids 246/247 before cleanup). A guard in `tasker_parser.py` — skip or mark internal when parsed amount is 0 and text matches non-payment patterns — would stop the accumulation.
 
 ## 4. Uncommitted work
 
