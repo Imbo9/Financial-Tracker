@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.server.routes import auth as auth_module
+
 _USERNAME = "testuser"
 _PASSWORD = "testpassword"
 
@@ -49,3 +51,29 @@ class TestLogout:
         assert "jwt" in client.cookies
         client.post("/auth/logout")
         assert not client.cookies.get("jwt")
+
+
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit():
+    auth_module._clear_failures()
+    yield
+    auth_module._clear_failures()
+
+
+class TestLoginRateLimit:
+    def test_locked_after_five_failures_even_with_valid_credentials(self, client):
+        for _ in range(5):
+            r = client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
+            assert r.status_code == 401
+        r = client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        assert r.status_code == 429
+
+    def test_successful_login_clears_the_counter(self, client):
+        for _ in range(4):
+            client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
+        r = client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        assert r.status_code == 200
+        r = client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
+        assert r.status_code == 401  # counter reset - not 429
