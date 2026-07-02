@@ -53,7 +53,7 @@ class TestWebhookEndpoint:
         body = json.dumps(VALID_PAYLOAD, separators=(",", ":")).encode()
         sig = hmac.new(_SECRET.encode(), body, hashlib.sha256).hexdigest()
         with (
-            patch("src.server.routes.webhook.get_conn") as mock_conn,
+            patch("src.server.routes.webhook.connection") as mock_conn,
             patch("src.server.routes.webhook.insert_transaction", return_value=True),
             patch("src.server.routes.webhook.notify_transaction"),
         ):
@@ -71,7 +71,7 @@ class TestWebhookEndpoint:
         body = json.dumps(VALID_PAYLOAD, separators=(",", ":")).encode()
         sig = hmac.new(_SECRET.encode(), body, hashlib.sha256).hexdigest()
         with (
-            patch("src.server.routes.webhook.get_conn") as mock_conn,
+            patch("src.server.routes.webhook.connection") as mock_conn,
             patch("src.server.routes.webhook.insert_transaction", return_value=False),
             patch("src.server.routes.webhook.notify_transaction"),
         ):

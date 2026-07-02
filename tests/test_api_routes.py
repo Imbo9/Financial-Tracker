@@ -86,7 +86,7 @@ class TestTransactionsList:
 
     def test_returns_paginated_response(self, auth_client):
         with patch(
-            "src.server.routes.api.get_connection",
+            "src.storage.db_insert.get_connection",
             return_value=_mock_conn([FAKE_ROW], {"total": 1}),
         ):
             resp = auth_client.get("/transactions")
@@ -103,14 +103,14 @@ class TestTransactionsList:
 
     def test_page_defaults_to_1(self, auth_client):
         with patch(
-            "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
+            "src.storage.db_insert.get_connection", return_value=_mock_conn([], {"total": 0})
         ):
             resp = auth_client.get("/transactions")
         assert resp.json()["page"] == 1
 
     def test_direction_income_filters_positive_amounts(self, auth_client):
         with patch(
-            "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
+            "src.storage.db_insert.get_connection", return_value=_mock_conn([], {"total": 0})
         ):
             resp = auth_client.get("/transactions?direction=income")
         assert resp.status_code == 200
@@ -121,7 +121,7 @@ class TestTransactionsList:
 
     def test_search_filter_accepted(self, auth_client):
         with patch(
-            "src.server.routes.api.get_connection", return_value=_mock_conn([], {"total": 0})
+            "src.storage.db_insert.get_connection", return_value=_mock_conn([], {"total": 0})
         ):
             resp = auth_client.get("/transactions?search=costa")
         assert resp.status_code == 200
@@ -162,7 +162,7 @@ class TestCreateTransaction:
         mock_conn = MagicMock()
         mock_conn.cursor.return_value = mock_cur
 
-        with patch("src.server.routes.api.get_connection", return_value=mock_conn):
+        with patch("src.storage.db_insert.get_connection", return_value=mock_conn):
             resp = auth_client.post("/transactions", json=body)
 
         assert resp.status_code == 201
@@ -182,7 +182,7 @@ class TestCreateTransaction:
             "currency": "EUR",
             "eur_amount": -12.50,
         }
-        with patch("src.server.routes.api.get_connection", return_value=mock_conn):
+        with patch("src.storage.db_insert.get_connection", return_value=mock_conn):
             resp = auth_client.post("/transactions", json=body)
         assert resp.status_code == 409
 
@@ -202,7 +202,7 @@ class TestStats:
 
     def test_categories_returns_list_with_percentages(self, auth_client):
         with patch(
-            "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_CATEGORY_ROW])
+            "src.storage.db_insert.get_connection", return_value=_mock_conn([FAKE_CATEGORY_ROW])
         ):
             resp = auth_client.get("/stats/categories")
         assert resp.status_code == 200
@@ -219,7 +219,7 @@ class TestStats:
 
     def test_monthly_returns_list_with_net(self, auth_client):
         with patch(
-            "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_MONTHLY_ROW])
+            "src.storage.db_insert.get_connection", return_value=_mock_conn([FAKE_MONTHLY_ROW])
         ):
             resp = auth_client.get("/stats/monthly")
         assert resp.status_code == 200
@@ -240,7 +240,7 @@ class TestAccounts:
 
     def test_returns_accounts_list(self, auth_client):
         with patch(
-            "src.server.routes.api.get_connection", return_value=_mock_conn([FAKE_ACCOUNT_ROW])
+            "src.storage.db_insert.get_connection", return_value=_mock_conn([FAKE_ACCOUNT_ROW])
         ):
             resp = auth_client.get("/accounts")
         assert resp.status_code == 200

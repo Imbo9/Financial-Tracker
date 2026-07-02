@@ -1,5 +1,6 @@
 import logging
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 import psycopg2
@@ -66,6 +67,16 @@ ON CONFLICT (dedup_hash) DO NOTHING
 
 def get_connection(database_url: str):
     return psycopg2.connect(database_url)
+
+
+@contextmanager
+def connection(database_url: str):
+    """Context-managed psycopg2 connection — closes on exit."""
+    conn = get_connection(database_url)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def ensure_schema(conn) -> None:

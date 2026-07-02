@@ -1,6 +1,5 @@
 import logging
 import sys
-from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -14,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 import config.settings as settings
 from src.normalizer.hash import manual_dedup_hash
-from src.storage.db_insert import get_connection
+from src.storage.db_insert import connection
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,15 +55,6 @@ def _require_jwt(jwt: str | None = Cookie(default=None)) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-@contextmanager
-def _get_conn():
-    conn = get_connection(settings.DATABASE_URL)
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 def _row_to_dict(row: Any) -> dict[str, Any]:
     out = dict(row)
     for k, v in out.items():
@@ -100,7 +90,7 @@ async def list_transactions(
     where = " AND ".join(conditions)
     offset = (page - 1) * page_size
 
-    with _get_conn() as conn:
+    with connection(settings.DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 f"SELECT COUNT(*) AS total FROM real_transactions WHERE {where}",
@@ -145,7 +135,7 @@ async def create_transaction(
         "source_id": None,
     }
 
-    with _get_conn() as conn:
+    with connection(settings.DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(_INSERT_RETURN, row_data)
             row = cur.fetchone()
@@ -162,7 +152,7 @@ async def stats_categories(
     _: Annotated[None, Depends(_require_jwt)],
     days_back: Annotated[int, Field(ge=1, le=365)] = 30,
 ) -> list[dict]:
-    with _get_conn() as conn:
+    with connection(settings.DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """SELECT COALESCE(category, 'Uncategorized') AS category,
@@ -188,7 +178,7 @@ async def stats_monthly(
     _: Annotated[None, Depends(_require_jwt)],
     months: Annotated[int, Field(ge=1, le=24)] = 12,
 ) -> list[dict]:
-    with _get_conn() as conn:
+    with connection(settings.DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
@@ -213,7 +203,7 @@ async def stats_monthly(
 async def list_accounts(
     _: Annotated[None, Depends(_require_jwt)],
 ) -> dict:
-    with _get_conn() as conn:
+    with connection(settings.DATABASE_URL) as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """SELECT account_id,

@@ -3,7 +3,6 @@ import hmac
 import json
 import logging
 import sys
-from contextlib import contextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
@@ -14,19 +13,10 @@ import config.settings as settings
 from src.ingestion.tasker_parser import parse_tasker_payload
 from src.models.tasker import TaskerPayload
 from src.notifications.telegram import notify_transaction
-from src.storage.db_insert import get_connection, insert_transaction
+from src.storage.db_insert import connection, insert_transaction
 
 log = logging.getLogger(__name__)
 router = APIRouter()
-
-
-@contextmanager
-def get_conn():
-    conn = get_connection(settings.DATABASE_URL)
-    try:
-        yield conn
-    finally:
-        conn.close()
 
 
 def _verify_signature(body: bytes, signature: str | None) -> bool:
@@ -52,7 +42,7 @@ async def tasker_webhook(
 
     tx = parse_tasker_payload(payload)
 
-    with get_conn() as conn:
+    with connection(settings.DATABASE_URL) as conn:
         inserted = insert_transaction(conn, tx)
 
     if inserted:
