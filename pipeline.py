@@ -7,22 +7,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import config.settings as settings
 
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
-    format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
-    datefmt="%Y-%m-%dT%H:%M:%S",
-)
+settings.setup_logging()
 log = logging.getLogger("pipeline")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Revolut → Postgres finance pipeline")
-    parser.add_argument("--days", type=int, default=settings.FETCH_DAYS_BACK,
-                        help="Days of history to fetch (default: %(default)s)")
-    parser.add_argument("--skip-fetch", action="store_true",
-                        help="Skip Enable Banking fetch")
-    parser.add_argument("--skip-categorize", action="store_true",
-                        help="Skip Claude categorization")
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=settings.FETCH_DAYS_BACK,
+        help="Days of history to fetch (default: %(default)s)",
+    )
+    parser.add_argument("--skip-fetch", action="store_true", help="Skip Enable Banking fetch")
+    parser.add_argument("--skip-categorize", action="store_true", help="Skip Claude categorization")
     args = parser.parse_args()
 
     from src.storage.db_insert import ensure_schema, get_connection, insert_transactions
@@ -50,7 +48,10 @@ def main() -> None:
             n_internal = sum(1 for t in normalized if t.is_internal)
             log.info(
                 "Account %s: %d raw → %d normalized (%d internal)",
-                account_id[:8], len(raw_txs), len(normalized), n_internal,
+                account_id[:8],
+                len(raw_txs),
+                len(normalized),
+                n_internal,
             )
             all_normalized.extend(normalized)
 
@@ -61,6 +62,7 @@ def main() -> None:
 
     if not args.skip_categorize:
         from src.categorizer.categorize import categorize_uncategorized
+
         log.info("Categorizing with Claude ...")
         n = categorize_uncategorized(conn)
         log.info("Categorized %d transactions", n)

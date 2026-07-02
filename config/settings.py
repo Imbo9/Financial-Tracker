@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -63,3 +64,11 @@ COOKIE_SAMESITE: str = _get("COOKIE_SAMESITE", "none")
 
 # Enable Banking — base64 private key for cloud deployments (overrides file path)
 ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")
+
+
+def setup_logging() -> None:
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL, logging.INFO),
+        format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+    )

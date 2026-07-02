@@ -14,11 +14,7 @@ from src.server.routes.auth import router as auth_router  # noqa: E402
 from src.server.routes.sync import router as sync_router  # noqa: E402
 from src.server.routes.webhook import router as webhook_router  # noqa: E402
 
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
-    format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
-    datefmt="%Y-%m-%dT%H:%M:%S",
-)
+settings.setup_logging()
 
 log = logging.getLogger(__name__)
 
