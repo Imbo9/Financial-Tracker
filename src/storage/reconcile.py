@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.models.reconciliation import ReconciliationMatch, ReconciliationResult
 from src.models.transaction import NormalizedTransaction
+from src.storage.db_insert import INSERT_SQL as _INSERT
 
 log = logging.getLogger(__name__)
 
@@ -47,8 +48,6 @@ WHERE id = %s AND status = 'pending'
 """
 
 _CHECK_ID_FOR_HASH = "SELECT id FROM transactions WHERE dedup_hash = %s LIMIT 1"
-
-from src.storage.db_insert import INSERT_SQL as _INSERT  # noqa: E402
 
 
 def reconcile_or_insert(conn, tx: NormalizedTransaction) -> ReconciliationResult:
