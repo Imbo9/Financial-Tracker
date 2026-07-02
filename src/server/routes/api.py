@@ -13,25 +13,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 import config.settings as settings
 from src.normalizer.hash import manual_dedup_hash
-from src.storage.db_insert import connection
+from src.storage.db_insert import INSERT_SQL, connection
 
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-_INSERT_RETURN = """
-INSERT INTO transactions
-    (dedup_hash, booking_date, amount, currency, eur_amount,
-     description, merchant_name, account_id, is_internal, category, subcategory,
-     status, source, source_id)
-VALUES
-    (%(dedup_hash)s, %(booking_date)s, %(amount)s, %(currency)s, %(eur_amount)s,
-     %(description)s, %(merchant_name)s, %(account_id)s, %(is_internal)s,
-     %(category)s, %(subcategory)s, %(status)s, %(source)s, %(source_id)s)
-ON CONFLICT (dedup_hash) DO NOTHING
+_INSERT_RETURN = (
+    INSERT_SQL
+    + """
 RETURNING id, dedup_hash, booking_date, amount, currency, eur_amount,
           description, merchant_name, account_id, is_internal,
           category, subcategory, status, source, created_at
 """
+)
 
 
 class ManualTransactionIn(BaseModel):
