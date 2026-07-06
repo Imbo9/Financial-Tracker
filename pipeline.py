@@ -43,14 +43,16 @@ def main() -> None:
     else:
         log.info("Skipping fetch (--skip-fetch)")
 
-    if not args.skip_categorize:
+    if args.skip_categorize:
+        log.info("Skipping categorization (--skip-categorize)")
+    elif not settings.ANTHROPIC_API_KEY:
+        log.warning("ANTHROPIC_API_KEY not set — skipping categorization")
+    else:
         from src.categorizer.categorize import categorize_uncategorized
 
         log.info("Categorizing with Claude ...")
         n = categorize_uncategorized(conn)
         log.info("Categorized %d transactions", n)
-    else:
-        log.info("Skipping categorization (--skip-categorize)")
 
     conn.close()
     log.info("Pipeline complete")

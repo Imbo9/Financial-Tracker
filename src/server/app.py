@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
+    settings.validate_server_settings()
     app = FastAPI(
         title="Revolut Finance Ingestion", docs_url=None, redoc_url=None, openapi_url=None
     )

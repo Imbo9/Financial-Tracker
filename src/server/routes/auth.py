@@ -6,6 +6,7 @@ import time
 import uuid
 from collections import deque
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 
 import bcrypt
@@ -79,11 +80,15 @@ def _bcrypt_cost(hashed: str) -> int:
         raise EnvironmentError("APP_PASSWORD_HASH is not a valid bcrypt hash")
 
 
-# Checked when the username is wrong, at the same cost as the real hash, so both
-# failure paths take equal time — otherwise timing would reveal whether a username exists.
-_DUMMY_HASH = bcrypt.hashpw(
-    b"#invalid#", bcrypt.gensalt(_bcrypt_cost(settings.APP_PASSWORD_HASH))
-).decode()
+@lru_cache(maxsize=1)
+def _dummy_hash() -> str:
+    """Checked when the username is wrong, at the same cost as the real hash, so both
+    failure paths take equal time — otherwise timing would reveal whether a username exists.
+
+    Lazy (not module-level) so importing this module doesn't require APP_PASSWORD_HASH."""
+    return bcrypt.hashpw(
+        b"#invalid#", bcrypt.gensalt(_bcrypt_cost(settings.APP_PASSWORD_HASH))
+    ).decode()
 
 
 def _verify_password(plain: str, hashed: str) -> bool:
@@ -134,7 +139,7 @@ def login(body: LoginRequest, response: Response) -> dict:
         raise HTTPException(status_code=429, detail="Too many failed attempts — try later")
     user_ok = hmac.compare_digest(body.username.encode(), settings.APP_USERNAME.encode())
     pass_ok = _verify_password(
-        body.password, settings.APP_PASSWORD_HASH if user_ok else _DUMMY_HASH
+        body.password, settings.APP_PASSWORD_HASH if user_ok else _dummy_hash()
     )
     if not (user_ok and pass_ok):
         _record_failure()

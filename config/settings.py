@@ -41,21 +41,36 @@ DATABASE_URL: str = _get("DATABASE_URL", "postgresql://user:changeme@localhost:5
 FETCH_DAYS_BACK: int = int(_get("FETCH_DAYS_BACK", "90"))
 LOG_LEVEL: str = _get("LOG_LEVEL", "INFO")
 
-# Telegram
+# Telegram — needed by both the server and the pipeline (sync alerts)
 TELEGRAM_TOKEN: str = _require("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID: str = _require("TELEGRAM_CHAT_ID")
 
-# Webhook
-WEBHOOK_SECRET: str = _require("WEBHOOK_SECRET")
-if len(WEBHOOK_SECRET) < 32:
-    raise EnvironmentError("WEBHOOK_SECRET must be at least 32 characters")
+# Server-only secrets — validated by validate_server_settings() at server startup,
+# so pipeline.py (local runs and sync-cron) doesn't need dashboard credentials.
+WEBHOOK_SECRET: str = _get("WEBHOOK_SECRET")
+APP_USERNAME: str = _get("APP_USERNAME")
+APP_PASSWORD_HASH: str = _get("APP_PASSWORD_HASH")
+JWT_SECRET: str = _get("JWT_SECRET")
 
-# JWT authentication
-APP_USERNAME: str = _require("APP_USERNAME")
-APP_PASSWORD_HASH: str = _require("APP_PASSWORD_HASH")
-JWT_SECRET: str = _require("JWT_SECRET")
-if len(JWT_SECRET) < 32:
-    raise EnvironmentError("JWT_SECRET must be at least 32 characters")
+
+def validate_server_settings() -> None:
+    missing = [
+        key
+        for key, val in {
+            "WEBHOOK_SECRET": WEBHOOK_SECRET,
+            "APP_USERNAME": APP_USERNAME,
+            "APP_PASSWORD_HASH": APP_PASSWORD_HASH,
+            "JWT_SECRET": JWT_SECRET,
+        }.items()
+        if not val
+    ]
+    if missing:
+        raise EnvironmentError(f"Required env vars not set: {', '.join(missing)}")
+    if len(WEBHOOK_SECRET) < 32:
+        raise EnvironmentError("WEBHOOK_SECRET must be at least 32 characters")
+    if len(JWT_SECRET) < 32:
+        raise EnvironmentError("JWT_SECRET must be at least 32 characters")
+
 
 # Cookie settings — override per environment
 FRONTEND_URL: str = _get("FRONTEND_URL", "http://localhost:5173")
