@@ -53,7 +53,12 @@ Gaps: no frontend tests at all, and no integration test that exercises the full 
 | CSV import | Cheap win, reuses the manual-transaction path (`manual_dedup_hash`) |
 | Session renewal automation | Not on the roadmap but should be (see §3 operational) |
 
-## 7. History patterns worth knowing
+## 7. Decisions
+
+- **2026-07-06 — Stay on Neon; Supabase migration evaluated and rejected.** Full analysis of the DB layer confirmed a migration would be trivial (single `psycopg2.connect(DATABASE_URL)` access point, standard SQL, 7.9 MB of data vs 500 MB free tier) but net-negative: Supabase's free tier has **no automatic backups** (Neon includes PITR — decisive for financial data), its strengths (Auth, Storage, Realtime, Data API) solve problems this stack doesn't have, and the Data API would actually have to be *disabled* as an extra attack surface. Neon's only drawback (~500 ms cold start after scale-to-zero) is imperceptible with the 4×/day cron and a single user. Revisit only if the roadmap adds multi-user auth, document storage, or realtime subscriptions — the clean DB layer keeps the migration cheap whenever that day comes.
+- **2026-07-06 — Keep the `embedding vector(1536)` column.** Considered dropping it as dead weight; rejected because semantic search is an explicit roadmap item (PHASE2 §3), `pgvector` is a declared dependency, and an inert NULL column costs effectively nothing. YAGNI applies to speculative *code*, not to a column touching no execution path. When populating it, the categorizer's privacy boundary applies: embeddings must be derived from `merchant_name`/description only, consistent with what already leaves for the Claude API.
+
+## 8. History patterns worth knowing
 
 - The git log shows disciplined incremental delivery: design spec → plan → implementation commits (JWT auth arc, `54a440a`→`f16bc4f`, is a textbook example, including a mid-course pivot to the Vercel proxy when cross-origin cookies failed).
 - Security fixes arrive in dedicated passes (`cb8ccce`, `603ec33`, the current uncommitted one) rather than mixed into features — keep doing that.
