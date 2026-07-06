@@ -60,7 +60,8 @@ if len(JWT_SECRET) < 32:
 # Cookie settings — override per environment
 FRONTEND_URL: str = _get("FRONTEND_URL", "http://localhost:5173")
 COOKIE_SECURE: bool = _get("COOKIE_SECURE", "true").lower() == "true"
-COOKIE_SAMESITE: str = _get("COOKIE_SAMESITE", "none")
+# "lax" is safe because the Vercel proxy makes all API calls first-party
+COOKIE_SAMESITE: str = _get("COOKIE_SAMESITE", "lax")
 
 # Enable Banking — base64 private key for cloud deployments (overrides file path)
 ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")

@@ -28,9 +28,17 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[settings.FRONTEND_URL, "http://localhost:5173"],
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
     )
+
+    # Financial data must never land in shared caches (Vercel proxy sits in front)
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     app.include_router(webhook_router)
     app.include_router(sync_router)

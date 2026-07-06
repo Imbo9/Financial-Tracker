@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 import config.settings as settings
 from src.normalizer.hash import manual_dedup_hash
+from src.server.routes.auth import verify_token
 from src.storage.db_insert import INSERT_SQL, connection
 
 log = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def _require_jwt(jwt: str | None = Cookie(default=None)) -> None:
     if not jwt:
         raise HTTPException(status_code=401, detail="Unauthorized")
     try:
-        pyjwt.decode(jwt, settings.JWT_SECRET, algorithms=["HS256"])
+        verify_token(jwt)
     except pyjwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
 

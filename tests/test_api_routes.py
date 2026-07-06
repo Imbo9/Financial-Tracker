@@ -39,17 +39,27 @@ def client():
     return TestClient(create_app())
 
 
+def _token(**overrides):
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": "testuser",
+        "iss": "fimbook-api",
+        "aud": "fimbook-dashboard",
+        "iat": now,
+        "exp": now + timedelta(hours=1),
+        "jti": "test-jti",
+    }
+    payload.update(overrides)
+    return pyjwt.encode(payload, _JWT_SECRET, algorithm="HS256")
+
+
 @pytest.fixture
 def auth_client():
     from src.server.app import create_app
 
     c = TestClient(create_app())
-    token = pyjwt.encode(
-        {"sub": "testuser", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
-        _JWT_SECRET,
-        algorithm="HS256",
-    )
-    c.cookies.set("jwt", token)
+    r = c.post("/auth/login", json={"username": "testuser", "password": "testpassword"})
+    assert r.status_code == 200
     return c
 
 
@@ -75,12 +85,22 @@ class TestTransactionsList:
         assert resp.status_code == 401
 
     def test_expired_jwt_returns_401(self, client):
-        token = pyjwt.encode(
-            {"sub": "testuser", "exp": datetime.now(timezone.utc) - timedelta(seconds=1)},
-            _JWT_SECRET,
-            algorithm="HS256",
+        client.cookies.set("jwt", _token(exp=datetime.now(timezone.utc) - timedelta(seconds=1)))
+        resp = client.get("/transactions")
+        assert resp.status_code == 401
+
+    def test_wrong_subject_returns_401(self, client):
+        client.cookies.set("jwt", _token(sub="intruder"))
+        resp = client.get("/transactions")
+        assert resp.status_code == 401
+
+    def test_token_without_jti_returns_401(self, client):
+        payload_token = _token()
+        decoded = pyjwt.decode(
+            payload_token, _JWT_SECRET, algorithms=["HS256"], audience="fimbook-dashboard"
         )
-        client.cookies.set("jwt", token)
+        del decoded["jti"]
+        client.cookies.set("jwt", pyjwt.encode(decoded, _JWT_SECRET, algorithm="HS256"))
         resp = client.get("/transactions")
         assert resp.status_code == 401
 
