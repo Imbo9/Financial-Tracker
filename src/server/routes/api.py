@@ -47,7 +47,7 @@ def _require_jwt(jwt: str | None = Cookie(default=None)) -> None:
     try:
         verify_token(jwt)
     except pyjwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=401, detail="Unauthorized") from None
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
@@ -85,24 +85,26 @@ async def list_transactions(
     where = " AND ".join(conditions)
     offset = (page - 1) * page_size
 
-    with connection(settings.DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                f"SELECT COUNT(*) AS total FROM real_transactions WHERE {where}",
-                params,
-            )
-            total = cur.fetchone()["total"]
-            cur.execute(
-                f"""SELECT id, dedup_hash, booking_date, amount, currency, eur_amount,
-                           description, merchant_name, account_id, is_internal,
-                           category, subcategory, status, source, created_at
-                    FROM real_transactions
-                    WHERE {where}
-                    ORDER BY booking_date DESC
-                    LIMIT %s OFFSET %s""",
-                params + [page_size, offset],
-            )
-            rows = [_row_to_dict(r) for r in cur.fetchall()]
+    with (
+        connection(settings.DATABASE_URL) as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+    ):
+        cur.execute(
+            f"SELECT COUNT(*) AS total FROM real_transactions WHERE {where}",
+            params,
+        )
+        total = cur.fetchone()["total"]
+        cur.execute(
+            f"""SELECT id, dedup_hash, booking_date, amount, currency, eur_amount,
+                       description, merchant_name, account_id, is_internal,
+                       category, subcategory, status, source, created_at
+                FROM real_transactions
+                WHERE {where}
+                ORDER BY booking_date DESC
+                LIMIT %s OFFSET %s""",
+            [*params, page_size, offset],
+        )
+        rows = [_row_to_dict(r) for r in cur.fetchall()]
 
     return {"items": rows, "total": total, "page": page, "page_size": page_size}
 
@@ -147,20 +149,22 @@ async def stats_categories(
     _: Annotated[None, Depends(_require_jwt)],
     days_back: Annotated[int, Field(ge=1, le=365)] = 30,
 ) -> list[dict]:
-    with connection(settings.DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """SELECT COALESCE(category, 'Uncategorized') AS category,
-                          ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total,
-                          COUNT(*) AS count
-                   FROM real_transactions
-                   WHERE amount < 0
-                     AND booking_date >= NOW() - (%s * INTERVAL '1 day')
-                   GROUP BY category
-                   ORDER BY total DESC""",
-                (days_back,),
-            )
-            rows = [dict(r) for r in cur.fetchall()]
+    with (
+        connection(settings.DATABASE_URL) as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+    ):
+        cur.execute(
+            """SELECT COALESCE(category, 'Uncategorized') AS category,
+                      ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total,
+                      COUNT(*) AS count
+               FROM real_transactions
+               WHERE amount < 0
+                 AND booking_date >= NOW() - (%s * INTERVAL '1 day')
+               GROUP BY category
+               ORDER BY total DESC""",
+            (days_back,),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
 
     grand_total = sum(float(r["total"]) for r in rows) or 1
     for r in rows:
@@ -173,21 +177,23 @@ async def stats_monthly(
     _: Annotated[None, Depends(_require_jwt)],
     months: Annotated[int, Field(ge=1, le=24)] = 12,
 ) -> list[dict]:
-    with connection(settings.DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
-                          ROUND(SUM(CASE WHEN amount > 0
-                              THEN eur_amount ELSE 0 END)::numeric, 2) AS income,
-                          ROUND(SUM(CASE WHEN amount < 0
-                              THEN ABS(eur_amount) ELSE 0 END)::numeric, 2) AS expenses
-                   FROM real_transactions
-                   GROUP BY DATE_TRUNC('month', booking_date)
-                   ORDER BY DATE_TRUNC('month', booking_date) DESC
-                   LIMIT %s""",
-                (months,),
-            )
-            rows = [dict(r) for r in cur.fetchall()]
+    with (
+        connection(settings.DATABASE_URL) as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+    ):
+        cur.execute(
+            """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
+                      ROUND(SUM(CASE WHEN amount > 0
+                          THEN eur_amount ELSE 0 END)::numeric, 2) AS income,
+                      ROUND(SUM(CASE WHEN amount < 0
+                          THEN ABS(eur_amount) ELSE 0 END)::numeric, 2) AS expenses
+               FROM real_transactions
+               GROUP BY DATE_TRUNC('month', booking_date)
+               ORDER BY DATE_TRUNC('month', booking_date) DESC
+               LIMIT %s""",
+            (months,),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
 
     for r in rows:
         r["net"] = round(float(r["income"]) - float(r["expenses"]), 2)
@@ -198,17 +204,19 @@ async def stats_monthly(
 async def list_accounts(
     _: Annotated[None, Depends(_require_jwt)],
 ) -> dict:
-    with connection(settings.DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                """SELECT account_id,
-                          ROUND(SUM(eur_amount)::numeric, 2) AS balance
-                   FROM real_transactions
-                   WHERE account_id IS NOT NULL
-                   GROUP BY account_id
-                   ORDER BY balance DESC"""
-            )
-            rows = [dict(r) for r in cur.fetchall()]
+    with (
+        connection(settings.DATABASE_URL) as conn,
+        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
+    ):
+        cur.execute(
+            """SELECT account_id,
+                      ROUND(SUM(eur_amount)::numeric, 2) AS balance
+               FROM real_transactions
+               WHERE account_id IS NOT NULL
+               GROUP BY account_id
+               ORDER BY balance DESC"""
+        )
+        rows = [dict(r) for r in cur.fetchall()]
 
     accounts = [{"account_id": r["account_id"], "balance": float(r["balance"])} for r in rows]
     assets = round(sum(a["balance"] for a in accounts if a["balance"] > 0), 2)

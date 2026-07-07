@@ -68,7 +68,7 @@ def _categorize_batch(client: anthropic.Anthropic, merchants: list[str]) -> list
 def categorize_uncategorized(conn) -> int:
     """Fetch uncategorized real transactions, call Claude, update DB. Returns count updated."""
     if not settings.ANTHROPIC_API_KEY:
-        raise EnvironmentError("ANTHROPIC_API_KEY not set in config/.env")
+        raise OSError("ANTHROPIC_API_KEY not set in config/.env")
 
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
@@ -104,7 +104,7 @@ def categorize_uncategorized(conn) -> int:
             )
         update_data = [
             (r.get("category"), r.get("subcategory"), row_id)
-            for row_id, r in zip(ids, results)
+            for row_id, r in zip(ids, results, strict=False)
             if isinstance(r, dict)
         ]
         if update_data:

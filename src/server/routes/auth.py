@@ -5,7 +5,7 @@ import threading
 import time
 import uuid
 from collections import deque
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 
@@ -76,8 +76,8 @@ class LoginRequest(BaseModel):
 def _bcrypt_cost(hashed: str) -> int:
     try:
         return int(hashed.split("$")[2])
-    except (IndexError, ValueError):
-        raise EnvironmentError("APP_PASSWORD_HASH is not a valid bcrypt hash")
+    except (IndexError, ValueError) as err:
+        raise OSError("APP_PASSWORD_HASH is not a valid bcrypt hash") from err
 
 
 @lru_cache(maxsize=1)
@@ -100,7 +100,7 @@ def _verify_password(plain: str, hashed: str) -> bool:
 
 
 def _make_jwt() -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": settings.APP_USERNAME,
         "iss": _ISSUER,

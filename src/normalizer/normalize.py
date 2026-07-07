@@ -2,7 +2,7 @@ import logging
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -133,7 +133,7 @@ def normalize(
                 int(date_str[:4]),
                 int(date_str[5:7]),
                 int(date_str[8:10]),
-                tzinfo=timezone.utc,
+                tzinfo=UTC,
             )
             description = _description(tx)
             merchant = _extract_merchant(tx)

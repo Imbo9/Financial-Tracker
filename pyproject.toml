@@ -37,4 +37,13 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear (bug reali: mutable default, loop var binding, ecc.)
+    "UP",  # pyupgrade (sintassi moderna 3.12)
+    "SIM", # simplify
+    "C4",  # comprehensions
+    "RUF", # regole ruff native
+]

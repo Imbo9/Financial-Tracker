@@ -5,12 +5,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-import config.settings as settings  # noqa: E402
-from src.ingestion.fetch_transactions import fetch_transactions  # noqa: E402
-from src.normalizer.normalize import fetch_ecb_rates, normalize  # noqa: E402
-from src.notifications.telegram import notify_transaction, send_telegram  # noqa: E402
-from src.storage.db_insert import connection  # noqa: E402
-from src.storage.reconcile import reconcile_or_insert  # noqa: E402
+import config.settings as settings
+from src.ingestion.fetch_transactions import fetch_transactions
+from src.normalizer.normalize import fetch_ecb_rates, normalize
+from src.notifications.telegram import notify_transaction, send_telegram
+from src.storage.db_insert import connection
+from src.storage.reconcile import reconcile_or_insert
 
 log = logging.getLogger(__name__)
 

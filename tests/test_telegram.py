@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -12,7 +12,7 @@ from src.notifications.telegram import build_message, send_telegram
 def _tx(**kwargs):
     defaults = {
         "dedup_hash": "abc123",
-        "booking_date": datetime(2026, 6, 7, 14, 32, 0, tzinfo=timezone.utc),
+        "booking_date": datetime(2026, 6, 7, 14, 32, 0, tzinfo=UTC),
         "amount": -12.50,
         "currency": "EUR",
         "eur_amount": -12.50,

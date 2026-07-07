@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from datetime import UTC
+
 from src.server.routes import auth as auth_module
 
 _USERNAME = "testuser"
@@ -74,11 +76,11 @@ class TestTokenClaims:
         assert "jti" in payload and "iat" in payload
 
     def test_verify_token_rejects_wrong_subject(self):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         import jwt as pyjwt
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         token = pyjwt.encode(
             {
                 "sub": "intruder",

@@ -5,6 +5,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from datetime import UTC
+
 from src.normalizer.hash import eb_dedup_hash as _dedup_hash
 from src.normalizer.normalize import _is_internal, normalize
 
@@ -112,14 +114,14 @@ class TestNormalize:
         assert txs[0].amount == 25.50
 
     def test_basic(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         txs = normalize([self._tx()], "acc1", ecb_rates={})
         assert len(txs) == 1
         t = txs[0]
         assert t.currency == "EUR"
         assert t.eur_amount == -25.50
-        assert t.booking_date == datetime(2024, 1, 15, 0, 0, 0, tzinfo=timezone.utc)
+        assert t.booking_date == datetime(2024, 1, 15, 0, 0, 0, tzinfo=UTC)
         assert t.account_id == "acc1"
         assert not t.is_internal
         assert len(t.dedup_hash) == 64

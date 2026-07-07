@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -15,7 +15,7 @@ def _payload(**kwargs) -> TaskerPayload:
         "currency": "EUR",
         "merchant": "Esselunga",
         "direction": "debit",
-        "device_timestamp": datetime(2026, 6, 7, 14, 32, 0, tzinfo=timezone.utc),
+        "device_timestamp": datetime(2026, 6, 7, 14, 32, 0, tzinfo=UTC),
         "parse_status": "ok",
     }
     defaults.update(kwargs)
@@ -60,7 +60,7 @@ class TestParseTaskerPayload:
         assert tx.status == "pending"
 
     def test_booking_date_from_device_timestamp(self):
-        ts = datetime(2026, 6, 7, 14, 32, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 6, 7, 14, 32, 0, tzinfo=UTC)
         tx = parse_tasker_payload(_payload(device_timestamp=ts))
         assert tx.booking_date == ts
 
@@ -77,7 +77,7 @@ class TestParseRawText:
     def test_sent_you_credit(self):
         result = _parse_raw_text("Sent you EUR0.13. Tap to say thank you 💰")
         assert result is not None
-        amount, ccy, merchant, direction = result
+        amount, ccy, _merchant, direction = result
         assert amount == 0.13
         assert ccy == "EUR"
         assert direction == "credit"

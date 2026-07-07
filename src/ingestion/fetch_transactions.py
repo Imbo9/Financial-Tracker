@@ -67,7 +67,7 @@ def fetch_accounts() -> list[str]:
         log.info("Using %d cached account IDs from .env", len(settings.ENABLE_BANKING_ACCOUNT_IDS))
         return settings.ENABLE_BANKING_ACCOUNT_IDS
     if not settings.ENABLE_BANKING_SESSION_ID:
-        raise EnvironmentError("ENABLE_BANKING_SESSION_ID not set — run auth first")
+        raise OSError("ENABLE_BANKING_SESSION_ID not set — run auth first")
     with httpx.Client(timeout=15) as client:
         data = _get(client, f"/sessions/{settings.ENABLE_BANKING_SESSION_ID}/accounts")
     accounts = [acc["uid"] for acc in data.get("accounts", [])]
@@ -110,7 +110,7 @@ def fetch_transactions(days_back: int | None = None) -> dict[str, list[dict]]:
         not settings.ENABLE_BANKING_PRIVATE_KEY_B64
         and not settings.ENABLE_BANKING_PRIVATE_KEY_PATH.exists()
     ):
-        raise EnvironmentError(
+        raise OSError(
             f"Private key not found at {settings.ENABLE_BANKING_PRIVATE_KEY_PATH} — run auth first"
         )
     if days_back is None:

@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -15,7 +15,7 @@ _JWT_SECRET = os.environ.get("JWT_SECRET", "test-jwt-secret-for-pytest-tests!!!"
 FAKE_ROW = {
     "id": 1,
     "dedup_hash": "abc123",
-    "booking_date": datetime(2026, 6, 8, 10, 0, tzinfo=timezone.utc),
+    "booking_date": datetime(2026, 6, 8, 10, 0, tzinfo=UTC),
     "amount": -4.27,
     "currency": "EUR",
     "eur_amount": -4.27,
@@ -28,7 +28,7 @@ FAKE_ROW = {
     "status": "verified",
     "source": "enable_banking",
     "source_id": None,
-    "created_at": datetime(2026, 6, 8, 10, 0, tzinfo=timezone.utc),
+    "created_at": datetime(2026, 6, 8, 10, 0, tzinfo=UTC),
 }
 
 
@@ -40,7 +40,7 @@ def client():
 
 
 def _token(**overrides):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": "testuser",
         "iss": "fimbook-api",
@@ -85,7 +85,7 @@ class TestTransactionsList:
         assert resp.status_code == 401
 
     def test_expired_jwt_returns_401(self, client):
-        client.cookies.set("jwt", _token(exp=datetime.now(timezone.utc) - timedelta(seconds=1)))
+        client.cookies.set("jwt", _token(exp=datetime.now(UTC) - timedelta(seconds=1)))
         resp = client.get("/transactions")
         assert resp.status_code == 401
 

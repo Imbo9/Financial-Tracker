@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -12,7 +12,7 @@ from src.storage.reconcile import reconcile_or_insert
 def _tx(**kwargs) -> NormalizedTransaction:
     defaults = {
         "dedup_hash": "abc123",
-        "booking_date": datetime(2026, 6, 7, 10, 0, 0, tzinfo=timezone.utc),
+        "booking_date": datetime(2026, 6, 7, 10, 0, 0, tzinfo=UTC),
         "amount": -12.50,
         "currency": "EUR",
         "eur_amount": -12.50,

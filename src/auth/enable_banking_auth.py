@@ -21,7 +21,7 @@ import secrets
 import sys
 import time
 import webbrowser
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -121,7 +121,7 @@ def _update_env(updates: dict[str, str], env_path: Path) -> None:
 def _start_psu_session(
     client: httpx.Client, app_id: str, private_key_pem: str, country: str
 ) -> str:
-    valid_until = (datetime.now(timezone.utc) + timedelta(days=SESSION_VALID_DAYS)).strftime(
+    valid_until = (datetime.now(UTC) + timedelta(days=SESSION_VALID_DAYS)).strftime(
         "%Y-%m-%dT%H:%M:%S.000Z"
     )
     resp = client.post(
@@ -178,9 +178,9 @@ def main() -> None:
     key_path = Path(key_path_str) if Path(key_path_str).is_absolute() else root / key_path_str
 
     if not app_id:
-        raise EnvironmentError("Set ENABLE_BANKING_APP_ID in config/.env first.")
+        raise OSError("Set ENABLE_BANKING_APP_ID in config/.env first.")
     if not key_path.exists():
-        raise EnvironmentError(
+        raise OSError(
             f"Private key not found at {key_path}. "
             "Download it from the Enable Banking dashboard and save it there."
         )

@@ -16,7 +16,7 @@ def _get(key: str, default: str = "") -> str:
 def _require(key: str) -> str:
     val = os.getenv(key)
     if not val:
-        raise EnvironmentError(f"Required env var not set: {key}")
+        raise OSError(f"Required env var not set: {key}")
     return val
 
 
@@ -65,11 +65,11 @@ def validate_server_settings() -> None:
         if not val
     ]
     if missing:
-        raise EnvironmentError(f"Required env vars not set: {', '.join(missing)}")
+        raise OSError(f"Required env vars not set: {', '.join(missing)}")
     if len(WEBHOOK_SECRET) < 32:
-        raise EnvironmentError("WEBHOOK_SECRET must be at least 32 characters")
+        raise OSError("WEBHOOK_SECRET must be at least 32 characters")
     if len(JWT_SECRET) < 32:
-        raise EnvironmentError("JWT_SECRET must be at least 32 characters")
+        raise OSError("JWT_SECRET must be at least 32 characters")
 
 
 # Cookie settings — override per environment
