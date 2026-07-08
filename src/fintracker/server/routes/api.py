@@ -1,28 +1,21 @@
 import logging
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated
 
-import jwt as pyjwt
-import psycopg2.extras
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from fintracker.normalizer.hash import manual_dedup_hash
-from fintracker.server.routes.auth import verify_token
+from fintracker.server.deps import require_jwt
+from fintracker.server.services import accounts, stats, transactions
 from fintracker.settings import settings
-from fintracker.storage.db_insert import INSERT_SQL, connection
+from fintracker.storage.db_insert import connection
 
 log = logging.getLogger(__name__)
-router = APIRouter()
 
-_INSERT_RETURN = (
-    INSERT_SQL
-    + """
-RETURNING id, dedup_hash, booking_date, amount, currency, eur_amount,
-          description, merchant_name, account_id, is_internal,
-          category, subcategory, status, source, created_at
-"""
-)
+# Dual routers: same handlers, legacy keeps today's bare shapes for the live
+# frontend; /v1 wraps in {"data": ...}. Legacy router dies in Task 5.8.
+router_v1 = APIRouter(dependencies=[Depends(require_jwt)])
+router_legacy = APIRouter(dependencies=[Depends(require_jwt)])
 
 
 class ManualTransactionIn(BaseModel):
@@ -37,185 +30,115 @@ class ManualTransactionIn(BaseModel):
     subcategory: str | None = None
 
 
-def _require_jwt(jwt: str | None = Cookie(default=None)) -> None:
-    if not jwt:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    try:
-        verify_token(jwt)
-    except pyjwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Unauthorized") from None
-
-
-def _row_to_dict(row: Any) -> dict[str, Any]:
-    out = dict(row)
-    for k, v in out.items():
-        if hasattr(v, "isoformat"):
-            out[k] = v.isoformat()
-    return out
-
-
-@router.get("/transactions")
-async def list_transactions(
-    _: Annotated[None, Depends(_require_jwt)],
-    page: Annotated[int, Field(ge=1)] = 1,
-    page_size: Annotated[int, Field(ge=1, le=500)] = 50,
-    days_back: Annotated[int, Field(ge=1, le=365)] = 30,
-    category: str | None = None,
-    direction: str | None = Query(default=None, pattern="^(income|expense)$"),
-    search: str | None = None,
+def _list_transactions(
+    page: int,
+    page_size: int,
+    days_back: int,
+    category: str | None,
+    direction: str | None,
+    search: str | None,
 ) -> dict:
-    conditions = ["booking_date >= NOW() - (%s * INTERVAL '1 day')"]
-    params: list[Any] = [days_back]
-
-    if category:
-        conditions.append("category = %s")
-        params.append(category)
-    if direction == "income":
-        conditions.append("amount > 0")
-    elif direction == "expense":
-        conditions.append("amount < 0")
-    if search:
-        conditions.append("(merchant_name ILIKE %s OR description ILIKE %s)")
-        params.extend([f"%{search}%", f"%{search}%"])
-
-    where = " AND ".join(conditions)
-    offset = (page - 1) * page_size
-
-    with (
-        connection(settings.DATABASE_URL) as conn,
-        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
-    ):
-        cur.execute(
-            f"SELECT COUNT(*) AS total FROM real_transactions WHERE {where}",
-            params,
-        )
-        total = cur.fetchone()["total"]
-        cur.execute(
-            f"""SELECT id, dedup_hash, booking_date, amount, currency, eur_amount,
-                       description, merchant_name, account_id, is_internal,
-                       category, subcategory, status, source, created_at
-                FROM real_transactions
-                WHERE {where}
-                ORDER BY booking_date DESC
-                LIMIT %s OFFSET %s""",
-            [*params, page_size, offset],
-        )
-        rows = [_row_to_dict(r) for r in cur.fetchall()]
-
-    return {"items": rows, "total": total, "page": page, "page_size": page_size}
-
-
-@router.post("/transactions", status_code=201)
-async def create_transaction(
-    body: ManualTransactionIn,
-    _: Annotated[None, Depends(_require_jwt)],
-) -> dict:
-    dedup = manual_dedup_hash(body.booking_date.isoformat(), body.amount, body.currency)
-    row_data = {
-        "dedup_hash": dedup,
-        "booking_date": body.booking_date,
-        "amount": body.amount,
-        "currency": body.currency,
-        "eur_amount": body.eur_amount,
-        "description": body.description,
-        "merchant_name": body.merchant_name,
-        "account_id": body.account_id,
-        "is_internal": False,
-        "category": body.category,
-        "subcategory": body.subcategory,
-        "status": "verified",
-        "source": "manual",
-        "source_id": None,
-    }
-
     with connection(settings.DATABASE_URL) as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(_INSERT_RETURN, row_data)
-            row = cur.fetchone()
-        conn.commit()
+        return transactions.list_transactions(
+            conn,
+            page=page,
+            page_size=page_size,
+            days_back=days_back,
+            category=category,
+            direction=direction,
+            search=search,
+        )
 
+
+def _create_transaction(body: ManualTransactionIn) -> dict:
+    with connection(settings.DATABASE_URL) as conn:
+        row = transactions.create_manual(conn, body.model_dump())
     if row is None:
         raise HTTPException(status_code=409, detail="Duplicate transaction")
-
-    return _row_to_dict(row)
-
-
-@router.get("/stats/categories")
-async def stats_categories(
-    _: Annotated[None, Depends(_require_jwt)],
-    days_back: Annotated[int, Field(ge=1, le=365)] = 30,
-) -> list[dict]:
-    with (
-        connection(settings.DATABASE_URL) as conn,
-        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
-    ):
-        cur.execute(
-            """SELECT COALESCE(category, 'Uncategorized') AS category,
-                      ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total,
-                      COUNT(*) AS count
-               FROM real_transactions
-               WHERE amount < 0
-                 AND booking_date >= NOW() - (%s * INTERVAL '1 day')
-               GROUP BY category
-               ORDER BY total DESC""",
-            (days_back,),
-        )
-        rows = [dict(r) for r in cur.fetchall()]
-
-    grand_total = sum(float(r["total"]) for r in rows) or 1
-    for r in rows:
-        r["percentage"] = round(float(r["total"]) / grand_total * 100, 1)
-    return rows
+    return row
 
 
-@router.get("/stats/monthly")
-async def stats_monthly(
-    _: Annotated[None, Depends(_require_jwt)],
-    months: Annotated[int, Field(ge=1, le=24)] = 12,
-) -> list[dict]:
-    with (
-        connection(settings.DATABASE_URL) as conn,
-        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
-    ):
-        cur.execute(
-            """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
-                      ROUND(SUM(CASE WHEN amount > 0
-                          THEN eur_amount ELSE 0 END)::numeric, 2) AS income,
-                      ROUND(SUM(CASE WHEN amount < 0
-                          THEN ABS(eur_amount) ELSE 0 END)::numeric, 2) AS expenses
-               FROM real_transactions
-               GROUP BY DATE_TRUNC('month', booking_date)
-               ORDER BY DATE_TRUNC('month', booking_date) DESC
-               LIMIT %s""",
-            (months,),
-        )
-        rows = [dict(r) for r in cur.fetchall()]
-
-    for r in rows:
-        r["net"] = round(float(r["income"]) - float(r["expenses"]), 2)
-    return rows
+def _stats_categories(days_back: int) -> list[dict]:
+    with connection(settings.DATABASE_URL) as conn:
+        return stats.by_category(conn, days_back)
 
 
-@router.get("/accounts")
-async def list_accounts(
-    _: Annotated[None, Depends(_require_jwt)],
+def _stats_monthly(months: int) -> list[dict]:
+    with connection(settings.DATABASE_URL) as conn:
+        return stats.monthly(conn, months)
+
+
+def _accounts() -> dict:
+    with connection(settings.DATABASE_URL) as conn:
+        return accounts.balances(conn)
+
+
+PageQ = Annotated[int, Field(ge=1)]
+PageSizeQ = Annotated[int, Field(ge=1, le=500)]
+DaysBackQ = Annotated[int, Field(ge=1, le=365)]
+MonthsQ = Annotated[int, Field(ge=1, le=24)]
+DirectionQ = Annotated[str | None, Query(pattern="^(income|expense)$")]
+
+
+@router_v1.get("/transactions")
+def list_transactions_v1(
+    page: PageQ = 1,
+    page_size: PageSizeQ = 50,
+    days_back: DaysBackQ = 30,
+    category: str | None = None,
+    direction: DirectionQ = None,
+    search: str | None = None,
 ) -> dict:
-    with (
-        connection(settings.DATABASE_URL) as conn,
-        conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur,
-    ):
-        cur.execute(
-            """SELECT account_id,
-                      ROUND(SUM(eur_amount)::numeric, 2) AS balance
-               FROM real_transactions
-               WHERE account_id IS NOT NULL
-               GROUP BY account_id
-               ORDER BY balance DESC"""
-        )
-        rows = [dict(r) for r in cur.fetchall()]
+    return {"data": _list_transactions(page, page_size, days_back, category, direction, search)}
 
-    accounts = [{"account_id": r["account_id"], "balance": float(r["balance"])} for r in rows]
-    assets = round(sum(a["balance"] for a in accounts if a["balance"] > 0), 2)
-    liabilities = round(abs(sum(a["balance"] for a in accounts if a["balance"] < 0)), 2)
 
-    return {"assets": assets, "liabilities": liabilities, "accounts": accounts}
+@router_legacy.get("/transactions")
+def list_transactions_legacy(
+    page: PageQ = 1,
+    page_size: PageSizeQ = 50,
+    days_back: DaysBackQ = 30,
+    category: str | None = None,
+    direction: DirectionQ = None,
+    search: str | None = None,
+) -> dict:
+    return _list_transactions(page, page_size, days_back, category, direction, search)
+
+
+@router_v1.post("/transactions", status_code=201)
+def create_transaction_v1(body: ManualTransactionIn) -> dict:
+    return {"data": _create_transaction(body)}
+
+
+@router_legacy.post("/transactions", status_code=201)
+def create_transaction_legacy(body: ManualTransactionIn) -> dict:
+    return _create_transaction(body)
+
+
+@router_v1.get("/stats/categories")
+def stats_categories_v1(days_back: DaysBackQ = 30) -> dict:
+    return {"data": _stats_categories(days_back)}
+
+
+@router_legacy.get("/stats/categories")
+def stats_categories_legacy(days_back: DaysBackQ = 30) -> list[dict]:
+    return _stats_categories(days_back)
+
+
+@router_v1.get("/stats/monthly")
+def stats_monthly_v1(months: MonthsQ = 12) -> dict:
+    return {"data": _stats_monthly(months)}
+
+
+@router_legacy.get("/stats/monthly")
+def stats_monthly_legacy(months: MonthsQ = 12) -> list[dict]:
+    return _stats_monthly(months)
+
+
+@router_v1.get("/accounts")
+def accounts_v1() -> dict:
+    return {"data": _accounts()}
+
+
+@router_legacy.get("/accounts")
+def accounts_legacy() -> dict:
+    return _accounts()

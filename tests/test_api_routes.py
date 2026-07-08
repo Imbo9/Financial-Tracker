@@ -270,3 +270,107 @@ class TestAccounts:
         assert len(data["accounts"]) == 1
         assert data["accounts"][0]["account_id"] == "revolut-main"
         assert data["accounts"][0]["balance"] == 1234.56
+
+
+class TestV1Envelope:
+    """Every /v1 endpoint wraps the same payload the legacy route returns bare."""
+
+    def test_v1_transactions_list_wrapped_in_data(self, auth_client):
+        with patch(
+            "fintracker.storage.db_insert.get_connection",
+            return_value=_mock_conn([FAKE_ROW], {"total": 1}),
+        ):
+            resp = auth_client.get("/v1/transactions")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["total"] == 1
+        assert data["items"][0]["merchant_name"] == "Merchant"
+
+    def test_v1_transactions_create_wrapped_in_data(self, auth_client):
+        body = {
+            "booking_date": "2026-06-08T12:00:00Z",
+            "amount": -12.50,
+            "currency": "EUR",
+            "eur_amount": -12.50,
+            "merchant_name": "Costa Coffee",
+            "category": "Eating Out",
+        }
+        returned_row = dict(
+            FAKE_ROW,
+            id=99,
+            amount=-12.50,
+            eur_amount=-12.50,
+            merchant_name="Costa Coffee",
+            category="Eating Out",
+            source="manual",
+        )
+        mock_cur = MagicMock()
+        mock_cur.rowcount = 1
+        mock_cur.fetchone.return_value = returned_row
+        mock_cur.__enter__ = lambda s: s
+        mock_cur.__exit__ = MagicMock(return_value=False)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        with patch("fintracker.storage.db_insert.get_connection", return_value=mock_conn):
+            resp = auth_client.post("/v1/transactions", json=body)
+
+        assert resp.status_code == 201
+        assert resp.json()["data"]["merchant_name"] == "Costa Coffee"
+
+    def test_v1_stats_categories_wrapped_in_data(self, auth_client):
+        with patch(
+            "fintracker.storage.db_insert.get_connection",
+            return_value=_mock_conn([FAKE_CATEGORY_ROW]),
+        ):
+            resp = auth_client.get("/v1/stats/categories")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data[0]["category"] == "Eating Out"
+        assert data[0]["percentage"] == 100.0
+
+    def test_v1_stats_monthly_wrapped_in_data(self, auth_client):
+        with patch(
+            "fintracker.storage.db_insert.get_connection",
+            return_value=_mock_conn([FAKE_MONTHLY_ROW]),
+        ):
+            resp = auth_client.get("/v1/stats/monthly")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert abs(data[0]["net"] - (2198.80 - 114.25)) < 0.01
+
+    def test_v1_accounts_wrapped_in_data(self, auth_client):
+        with patch(
+            "fintracker.storage.db_insert.get_connection",
+            return_value=_mock_conn([FAKE_ACCOUNT_ROW]),
+        ):
+            resp = auth_client.get("/v1/accounts")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["accounts"][0]["account_id"] == "revolut-main"
+
+
+class TestIsoSerializationGuard:
+    """Guards against regressing to a manual _row_to_dict: FastAPI's own encoder must
+    turn the service layer's native datetimes into ISO-8601 strings, on both the
+    legacy route and /v1 — see Task 3.2 adjudication."""
+
+    def test_booking_date_is_iso_string_on_legacy_and_v1(self, auth_client):
+        with patch(
+            "fintracker.storage.db_insert.get_connection",
+            return_value=_mock_conn([FAKE_ROW], {"total": 1}),
+        ):
+            legacy_resp = auth_client.get("/transactions")
+        with patch(
+            "fintracker.storage.db_insert.get_connection",
+            return_value=_mock_conn([FAKE_ROW], {"total": 1}),
+        ):
+            v1_resp = auth_client.get("/v1/transactions")
+
+        legacy_date = legacy_resp.json()["items"][0]["booking_date"]
+        v1_date = v1_resp.json()["data"]["items"][0]["booking_date"]
+
+        assert isinstance(legacy_date, str)
+        assert isinstance(v1_date, str)
+        assert datetime.fromisoformat(legacy_date) == FAKE_ROW["booking_date"]
+        assert datetime.fromisoformat(v1_date) == FAKE_ROW["booking_date"]

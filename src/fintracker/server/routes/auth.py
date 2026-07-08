@@ -6,16 +6,21 @@ import uuid
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
+from typing import Annotated
 
 import bcrypt
 import jwt as pyjwt
-from fastapi import APIRouter, Cookie, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from fintracker.settings import settings
 
 log = logging.getLogger(__name__)
+
+# Dual router: legacy keeps today's bare shapes for the live frontend; /v1 wraps
+# login in {"data": ...} and adds /me. Legacy router dies in Task 5.8.
 router = APIRouter(prefix="/auth", tags=["auth"])
+router_v1 = APIRouter(prefix="/auth", tags=["auth"])
 
 _TOKEN_TTL_SECONDS = 86400
 _ISSUER = "fimbook-api"
@@ -129,8 +134,8 @@ def verify_token(token: str) -> dict:
     return payload
 
 
-@router.post("/login")
-def login(body: LoginRequest, response: Response) -> dict:
+def _do_login(body: LoginRequest, response: Response) -> None:
+    """Shared login logic for both routers: rate limit, credential check, cookie set."""
     if _too_many_failures():
         log.warning("Login locked out — too many failed attempts")
         raise HTTPException(status_code=429, detail="Too many failed attempts — try later")
@@ -151,11 +156,10 @@ def login(body: LoginRequest, response: Response) -> dict:
         samesite=settings.COOKIE_SAMESITE,
         max_age=_TOKEN_TTL_SECONDS,
     )
-    return {"ok": True}
 
 
-@router.post("/logout", status_code=204)
-def logout(response: Response, jwt: str | None = Cookie(default=None)) -> None:
+def _do_logout(response: Response, jwt: str | None) -> None:
+    """Shared logout logic for both routers: revoke token server-side, clear cookie."""
     if jwt:
         try:
             payload = verify_token(jwt)
@@ -168,3 +172,43 @@ def logout(response: Response, jwt: str | None = Cookie(default=None)) -> None:
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
     )
+
+
+@router.post("/login")
+def login(body: LoginRequest, response: Response) -> dict:
+    _do_login(body, response)
+    return {"ok": True}
+
+
+@router_v1.post("/login")
+def login_v1(body: LoginRequest, response: Response) -> dict:
+    _do_login(body, response)
+    return {"data": {"ok": True}}
+
+
+@router.post("/logout", status_code=204)
+def logout(response: Response, jwt: str | None = Cookie(default=None)) -> None:
+    _do_logout(response, jwt)
+
+
+@router_v1.post("/logout", status_code=204)
+def logout_v1(response: Response, jwt: str | None = Cookie(default=None)) -> None:
+    _do_logout(response, jwt)
+
+
+def _require_jwt_dep(jwt: str | None = Cookie(default=None)) -> dict:
+    """Delegates to deps.require_jwt (Task 3.1's session guard), imported lazily.
+
+    deps.py imports verify_token from this module at its own top level, so a
+    module-level `from fintracker.server.deps import require_jwt` here would be a
+    circular import (deps <-> auth). Deferring to call time breaks the cycle
+    without touching deps.py; behavior is identical to Depends(require_jwt).
+    """
+    from fintracker.server.deps import require_jwt
+
+    return require_jwt(jwt)
+
+
+@router_v1.get("/me")
+def me(payload: Annotated[dict, Depends(_require_jwt_dep)]) -> dict:
+    return {"data": {"username": payload["sub"]}}
