@@ -1,4 +1,5 @@
 import re
+from decimal import Decimal, InvalidOperation
 
 from fintracker.models.tasker import TaskerPayload
 from fintracker.models.transaction import NormalizedTransaction
@@ -54,7 +55,7 @@ _PATTERNS: list[tuple[str, re.Pattern]] = [
 ]
 
 
-def _parse_raw_text(raw_text: str) -> tuple[float, str, str | None, str] | None:
+def _parse_raw_text(raw_text: str) -> tuple[Decimal, str, str | None, str] | None:
     """Return (amount_signed, currency, merchant, direction) or None if no pattern matches."""
     for direction, pat in _PATTERNS:
         m = pat.search(raw_text)
@@ -67,8 +68,8 @@ def _parse_raw_text(raw_text: str) -> tuple[float, str, str | None, str] | None:
             else:
                 amt_str = raw.replace(",", "")
             try:
-                amt = float(amt_str)
-            except ValueError:
+                amt = Decimal(amt_str)
+            except InvalidOperation:
                 continue
             merchant = m.groupdict().get("merchant")
             if merchant:
@@ -85,7 +86,7 @@ def parse_tasker_payload(payload: TaskerPayload) -> NormalizedTransaction:
     sends EUR amounts; non-EUR amounts will be reconciled by the EB sync).
     """
     if payload.parse_status == "ok" and payload.amount is not None:
-        raw_amount = abs(float(payload.amount))
+        raw_amount = abs(Decimal(payload.amount))
         amount = -raw_amount if payload.direction == "debit" else raw_amount
         currency = payload.currency or "EUR"
         merchant = payload.merchant
@@ -96,7 +97,7 @@ def parse_tasker_payload(payload: TaskerPayload) -> NormalizedTransaction:
             amount, currency, merchant, _dir = parsed
             merchant = merchant or payload.merchant  # fallback to notification title
         else:
-            amount = 0.0
+            amount = Decimal("0")
             currency = payload.currency or "EUR"
             merchant = payload.merchant  # notification title from MacroDroid {not_title}
 

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 from fintracker.ingestion.tasker_parser import _parse_raw_text, parse_tasker_payload
@@ -78,7 +79,8 @@ class TestParseRawText:
         result = _parse_raw_text("Sent you EUR0.13. Tap to say thank you 💰")
         assert result is not None
         amount, ccy, _merchant, direction = result
-        assert amount == 0.13
+        # amount is Decimal; 0.13 has no exact binary float repr, so compare via Decimal.
+        assert amount == Decimal("0.13")
         assert ccy == "EUR"
         assert direction == "credit"
 
@@ -101,7 +103,7 @@ class TestParseRawText:
         result = _parse_raw_text("You sent EUR0.01 to Mario Rossi")
         assert result is not None
         amount, ccy, merchant, direction = result
-        assert amount == -0.01
+        assert amount == Decimal("-0.01")
         assert ccy == "EUR"
         assert merchant == "Mario Rossi"
         assert direction == "debit"
@@ -119,7 +121,7 @@ class TestParseRawText:
             direction=None,
         )
         tx = parse_tasker_payload(p)
-        assert tx.amount == 0.13
+        assert tx.amount == Decimal("0.13")
         assert tx.currency == "EUR"
         assert tx.status == "pending"
 
@@ -144,4 +146,4 @@ class TestParseRawText:
     def test_it_locale_amount_parsing(self):
         result = _parse_raw_text("You paid EUR1.234,56 at Esselunga")
         assert result is not None
-        assert result[0] == -1234.56
+        assert result[0] == Decimal("-1234.56")

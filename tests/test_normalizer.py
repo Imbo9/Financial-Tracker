@@ -138,7 +138,8 @@ class TestNormalize:
     def test_fx_conversion(self):
         raw = [self._tx(amount="108", currency="USD")]
         txs = normalize(raw, "acc1", ecb_rates={"USD": 1.08})
-        assert abs(txs[0].eur_amount - (-100.0)) < 0.01
+        # eur_amount is Decimal; compare via float since 108/1.08 isn't a terminating decimal.
+        assert abs(float(txs[0].eur_amount) - (-100.0)) < 0.01
 
     def test_internal_flagged(self):
         # Real Revolut top-up: remittance_information starts with the marker

@@ -2,6 +2,7 @@ import logging
 import re
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import httpx
 
@@ -60,14 +61,14 @@ def fetch_ecb_rates() -> dict[str, float]:
     return _ecb_cache
 
 
-def _to_eur(amount: float, currency: str, rates: dict[str, float]) -> float:
+def _to_eur(amount: Decimal, currency: str, rates: dict[str, float]) -> Decimal:
     if currency == "EUR":
         return amount
     rate = rates.get(currency)
     if rate is None:
         log.error("No ECB rate for %s — storing original amount as eur_amount", currency)
         return amount
-    return amount / rate
+    return amount / Decimal(str(rate))
 
 
 def _is_internal(description: str) -> bool:
@@ -88,9 +89,9 @@ def _extract_merchant(raw_tx: dict) -> str:
     return name or "Unknown"
 
 
-def _parse_amount(raw_tx: dict) -> float:
+def _parse_amount(raw_tx: dict) -> Decimal:
     amount_data = raw_tx.get("transaction_amount", {})
-    amount = abs(float(amount_data.get("amount", 0)))
+    amount = abs(Decimal(str(amount_data.get("amount", "0"))))
     if raw_tx.get("credit_debit_indicator", "DBIT") == "DBIT":
         return -amount
     return amount

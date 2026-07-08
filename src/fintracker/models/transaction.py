@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -11,9 +12,9 @@ class NormalizedTransaction(BaseModel):
 
     dedup_hash: str
     booking_date: datetime
-    amount: float
+    amount: Decimal
     currency: str
-    eur_amount: float
+    eur_amount: Decimal
     description: str | None = None
     merchant_name: str | None = None
     account_id: str | None = None
