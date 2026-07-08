@@ -7,8 +7,7 @@ from pydantic import BaseModel, Field
 
 from fintracker.server.deps import require_jwt
 from fintracker.server.services import accounts, stats, transactions
-from fintracker.settings import settings
-from fintracker.storage.db_insert import connection
+from fintracker.storage.db import db_conn
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ def _list_transactions(
     direction: str | None,
     search: str | None,
 ) -> dict:
-    with connection(settings.DATABASE_URL) as conn:
+    with db_conn() as conn:
         return transactions.list_transactions(
             conn,
             page=page,
@@ -51,7 +50,7 @@ def _list_transactions(
 
 
 def _create_transaction(body: ManualTransactionIn) -> dict:
-    with connection(settings.DATABASE_URL) as conn:
+    with db_conn() as conn:
         row = transactions.create_manual(conn, body.model_dump())
     if row is None:
         raise HTTPException(status_code=409, detail="Duplicate transaction")
@@ -59,17 +58,17 @@ def _create_transaction(body: ManualTransactionIn) -> dict:
 
 
 def _stats_categories(days_back: int) -> list[dict]:
-    with connection(settings.DATABASE_URL) as conn:
+    with db_conn() as conn:
         return stats.by_category(conn, days_back)
 
 
 def _stats_monthly(months: int) -> list[dict]:
-    with connection(settings.DATABASE_URL) as conn:
+    with db_conn() as conn:
         return stats.monthly(conn, months)
 
 
 def _accounts() -> dict:
-    with connection(settings.DATABASE_URL) as conn:
+    with db_conn() as conn:
         return accounts.balances(conn)
 
 

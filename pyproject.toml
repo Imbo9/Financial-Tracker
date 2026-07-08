@@ -14,7 +14,6 @@ dependencies = [
     "fastapi>=0.115.0",
     "httpx>=0.28.1",
     "pgvector>=0.4.2",
-    "psycopg2-binary>=2.9.9",
     "pydantic>=2.0.0",
     "python-dotenv>=1.2.2",
     "pyjwt[cryptography]>=2.8.0",
@@ -22,6 +21,7 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "passlib[bcrypt]>=1.7.4",
     "pydantic-settings>=2.14.2",
+    "psycopg[binary,pool]>=3.3.4",
 ]
 
 [project.scripts]

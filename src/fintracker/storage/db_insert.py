@@ -1,8 +1,4 @@
 import logging
-from contextlib import contextmanager
-
-import psycopg2
-import psycopg2.extras
 
 from fintracker.models.transaction import NormalizedTransaction
 
@@ -61,20 +57,6 @@ ON CONFLICT (dedup_hash) DO NOTHING
 """
 
 
-def get_connection(database_url: str):
-    return psycopg2.connect(database_url)
-
-
-@contextmanager
-def connection(database_url: str):
-    """Context-managed psycopg2 connection — closes on exit."""
-    conn = get_connection(database_url)
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 def ensure_schema(conn) -> None:
     with conn.cursor() as cur:
         cur.execute(_DDL)
@@ -87,7 +69,7 @@ def insert_transactions(conn, transactions: list[NormalizedTransaction]) -> int:
         return 0
     rows = [t.model_dump() for t in transactions]
     with conn.cursor() as cur:
-        psycopg2.extras.execute_batch(cur, INSERT_SQL, rows, page_size=200)
+        cur.executemany(INSERT_SQL, rows)
     conn.commit()
     log.info("Upserted %d rows (duplicates silently skipped)", len(rows))
     return len(rows)

@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-import psycopg2.extras
+from psycopg.rows import dict_row
 
 from fintracker.normalizer.hash import manual_dedup_hash
 from fintracker.storage.db_insert import INSERT_SQL
@@ -48,7 +48,7 @@ def list_transactions(
     where = " AND ".join(conditions)
     offset = (page - 1) * page_size
 
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(f"SELECT COUNT(*) AS total FROM real_transactions WHERE {where}", params)
         total = cur.fetchone()["total"]
         cur.execute(
@@ -76,7 +76,7 @@ def create_manual(conn, data: dict) -> dict | None:
         "source": "manual",
         "source_id": None,
     }
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(_INSERT_RETURN, data)
         row = cur.fetchone()
     conn.commit()

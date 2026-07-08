@@ -9,7 +9,8 @@ from fintracker.ingestion.tasker_parser import parse_tasker_payload
 from fintracker.models.tasker import TaskerPayload
 from fintracker.notifications.telegram import notify_transaction
 from fintracker.settings import settings
-from fintracker.storage.db_insert import connection, insert_transaction
+from fintracker.storage.db import db_conn
+from fintracker.storage.db_insert import insert_transaction
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -40,7 +41,7 @@ async def tasker_webhook(
 
     tx = parse_tasker_payload(payload)
 
-    with connection(settings.DATABASE_URL) as conn:
+    with db_conn() as conn:
         inserted = insert_transaction(conn, tx)
 
     if inserted:

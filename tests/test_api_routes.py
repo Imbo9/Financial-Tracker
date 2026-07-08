@@ -70,6 +70,14 @@ def _mock_conn(fetchall_result=None, fetchone_result=None):
     return mock_conn
 
 
+def _mock_pool(conn):
+    """db_conn() does `with get_pool().connection() as conn:` — stub that chain."""
+    mock_pool = MagicMock()
+    mock_pool.connection.return_value.__enter__.return_value = conn
+    mock_pool.connection.return_value.__exit__.return_value = False
+    return mock_pool
+
+
 class TestTransactionsList:
     def test_missing_auth_returns_401(self, client):
         resp = client.get("/transactions")
@@ -102,8 +110,8 @@ class TestTransactionsList:
 
     def test_returns_paginated_response(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_ROW], {"total": 1}),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ROW], {"total": 1})),
         ):
             resp = auth_client.get("/transactions")
         assert resp.status_code == 200
@@ -119,14 +127,16 @@ class TestTransactionsList:
 
     def test_page_defaults_to_1(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection", return_value=_mock_conn([], {"total": 0})
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([], {"total": 0})),
         ):
             resp = auth_client.get("/transactions")
         assert resp.json()["page"] == 1
 
     def test_direction_income_filters_positive_amounts(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection", return_value=_mock_conn([], {"total": 0})
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([], {"total": 0})),
         ):
             resp = auth_client.get("/transactions?direction=income")
         assert resp.status_code == 200
@@ -137,7 +147,8 @@ class TestTransactionsList:
 
     def test_search_filter_accepted(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection", return_value=_mock_conn([], {"total": 0})
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([], {"total": 0})),
         ):
             resp = auth_client.get("/transactions?search=costa")
         assert resp.status_code == 200
@@ -178,7 +189,7 @@ class TestCreateTransaction:
         mock_conn = MagicMock()
         mock_conn.cursor.return_value = mock_cur
 
-        with patch("fintracker.storage.db_insert.get_connection", return_value=mock_conn):
+        with patch("fintracker.storage.db.get_pool", return_value=_mock_pool(mock_conn)):
             resp = auth_client.post("/transactions", json=body)
 
         assert resp.status_code == 201
@@ -198,7 +209,7 @@ class TestCreateTransaction:
             "currency": "EUR",
             "eur_amount": -12.50,
         }
-        with patch("fintracker.storage.db_insert.get_connection", return_value=mock_conn):
+        with patch("fintracker.storage.db.get_pool", return_value=_mock_pool(mock_conn)):
             resp = auth_client.post("/transactions", json=body)
         assert resp.status_code == 409
 
@@ -218,8 +229,8 @@ class TestStats:
 
     def test_categories_returns_list_with_percentages(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_CATEGORY_ROW]),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_CATEGORY_ROW])),
         ):
             resp = auth_client.get("/stats/categories")
         assert resp.status_code == 200
@@ -236,8 +247,8 @@ class TestStats:
 
     def test_monthly_returns_list_with_net(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_MONTHLY_ROW]),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_MONTHLY_ROW])),
         ):
             resp = auth_client.get("/stats/monthly")
         assert resp.status_code == 200
@@ -258,8 +269,8 @@ class TestAccounts:
 
     def test_returns_accounts_list(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_ACCOUNT_ROW]),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ACCOUNT_ROW])),
         ):
             resp = auth_client.get("/accounts")
         assert resp.status_code == 200
@@ -277,8 +288,8 @@ class TestV1Envelope:
 
     def test_v1_transactions_list_wrapped_in_data(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_ROW], {"total": 1}),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ROW], {"total": 1})),
         ):
             resp = auth_client.get("/v1/transactions")
         assert resp.status_code == 200
@@ -312,7 +323,7 @@ class TestV1Envelope:
         mock_conn = MagicMock()
         mock_conn.cursor.return_value = mock_cur
 
-        with patch("fintracker.storage.db_insert.get_connection", return_value=mock_conn):
+        with patch("fintracker.storage.db.get_pool", return_value=_mock_pool(mock_conn)):
             resp = auth_client.post("/v1/transactions", json=body)
 
         assert resp.status_code == 201
@@ -320,8 +331,8 @@ class TestV1Envelope:
 
     def test_v1_stats_categories_wrapped_in_data(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_CATEGORY_ROW]),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_CATEGORY_ROW])),
         ):
             resp = auth_client.get("/v1/stats/categories")
         assert resp.status_code == 200
@@ -331,8 +342,8 @@ class TestV1Envelope:
 
     def test_v1_stats_monthly_wrapped_in_data(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_MONTHLY_ROW]),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_MONTHLY_ROW])),
         ):
             resp = auth_client.get("/v1/stats/monthly")
         assert resp.status_code == 200
@@ -341,8 +352,8 @@ class TestV1Envelope:
 
     def test_v1_accounts_wrapped_in_data(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_ACCOUNT_ROW]),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ACCOUNT_ROW])),
         ):
             resp = auth_client.get("/v1/accounts")
         assert resp.status_code == 200
@@ -357,13 +368,13 @@ class TestIsoSerializationGuard:
 
     def test_booking_date_is_iso_string_on_legacy_and_v1(self, auth_client):
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_ROW], {"total": 1}),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ROW], {"total": 1})),
         ):
             legacy_resp = auth_client.get("/transactions")
         with patch(
-            "fintracker.storage.db_insert.get_connection",
-            return_value=_mock_conn([FAKE_ROW], {"total": 1}),
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ROW], {"total": 1})),
         ):
             v1_resp = auth_client.get("/v1/transactions")
 

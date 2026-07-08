@@ -49,7 +49,7 @@ class TestWebhookEndpoint:
         body = json.dumps(VALID_PAYLOAD, separators=(",", ":")).encode()
         sig = hmac.new(_SECRET.encode(), body, hashlib.sha256).hexdigest()
         with (
-            patch("fintracker.server.routes.webhook.connection") as mock_conn,
+            patch("fintracker.server.routes.webhook.db_conn") as mock_conn,
             patch("fintracker.server.routes.webhook.insert_transaction", return_value=True),
             patch("fintracker.server.routes.webhook.notify_transaction"),
         ):
@@ -67,7 +67,7 @@ class TestWebhookEndpoint:
         body = json.dumps(VALID_PAYLOAD, separators=(",", ":")).encode()
         sig = hmac.new(_SECRET.encode(), body, hashlib.sha256).hexdigest()
         with (
-            patch("fintracker.server.routes.webhook.connection") as mock_conn,
+            patch("fintracker.server.routes.webhook.db_conn") as mock_conn,
             patch("fintracker.server.routes.webhook.insert_transaction", return_value=False),
             patch("fintracker.server.routes.webhook.notify_transaction"),
         ):

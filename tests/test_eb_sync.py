@@ -45,7 +45,7 @@ class TestRunEbSync:
             ),
             patch("fintracker.sync.eb_sync.fetch_ecb_rates", return_value={}),
             patch("fintracker.sync.eb_sync.normalize", return_value=txs),
-            patch("fintracker.sync.eb_sync.connection"),
+            patch("fintracker.sync.eb_sync.direct_connection"),
             patch("fintracker.sync.eb_sync.reconcile_or_insert", side_effect=actions),
             patch("fintracker.sync.eb_sync.notify_transaction") as mock_notify,
             patch("fintracker.sync.eb_sync.send_telegram") as mock_alert,

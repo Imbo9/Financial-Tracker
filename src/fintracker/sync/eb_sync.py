@@ -5,7 +5,7 @@ from fintracker.ingestion.fetch_transactions import fetch_transactions
 from fintracker.normalizer.normalize import fetch_ecb_rates, normalize
 from fintracker.notifications.telegram import notify_transaction, send_telegram
 from fintracker.settings import settings
-from fintracker.storage.db_insert import connection
+from fintracker.storage.db import direct_connection
 from fintracker.storage.reconcile import reconcile_or_insert
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,8 @@ def run_eb_sync(days_back: int = 2) -> SyncStats:
         return stats
 
     ecb_rates = fetch_ecb_rates()
-    with connection(settings.DATABASE_URL) as conn:
+    conn = direct_connection()
+    try:
         for account_id, raw_txs in raw_by_account.items():
             for tx in normalize(raw_txs, account_id, ecb_rates):
                 result = reconcile_or_insert(conn, tx)
@@ -60,6 +61,8 @@ def run_eb_sync(days_back: int = 2) -> SyncStats:
                     stats.reconciled += 1
                 else:
                     stats.skipped += 1
+    finally:
+        conn.close()
 
     log.info(
         "EB sync done — inserted: %d, reconciled: %d, skipped: %d",

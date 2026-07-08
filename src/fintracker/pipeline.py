@@ -19,10 +19,11 @@ def main() -> None:
     parser.add_argument("--skip-categorize", action="store_true", help="Skip Claude categorization")
     args = parser.parse_args()
 
-    from fintracker.storage.db_insert import ensure_schema, get_connection
+    from fintracker.storage.db import direct_connection
+    from fintracker.storage.db_insert import ensure_schema
 
     log.info("Connecting to database ...")
-    conn = get_connection(settings.DATABASE_URL)
+    conn = direct_connection()
     ensure_schema(conn)
 
     if not args.skip_fetch:

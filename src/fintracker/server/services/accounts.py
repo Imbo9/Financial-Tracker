@@ -1,8 +1,8 @@
-import psycopg2.extras
+from psycopg.rows import dict_row
 
 
 def balances(conn) -> dict:
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """SELECT account_id, ROUND(SUM(eur_amount)::numeric, 2) AS balance
                FROM real_transactions

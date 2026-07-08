@@ -1,8 +1,8 @@
-import psycopg2.extras
+from psycopg.rows import dict_row
 
 
 def by_category(conn, days_back: int) -> list[dict]:
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """SELECT COALESCE(category, 'Uncategorized') AS category,
                       ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total,
@@ -22,7 +22,7 @@ def by_category(conn, days_back: int) -> list[dict]:
 
 
 def monthly(conn, months: int) -> list[dict]:
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM')
                       AS month,
