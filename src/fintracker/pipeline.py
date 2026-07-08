@@ -1,9 +1,9 @@
 import argparse
 import logging
 
-import fintracker.settings as settings
+from fintracker.settings import settings, setup_logging
 
-settings.setup_logging()
+setup_logging()
 log = logging.getLogger("pipeline")
 
 
@@ -41,7 +41,7 @@ def main() -> None:
 
     if args.skip_categorize:
         log.info("Skipping categorization (--skip-categorize)")
-    elif not settings.ANTHROPIC_API_KEY:
+    elif not settings.ANTHROPIC_API_KEY.get_secret_value():
         log.warning("ANTHROPIC_API_KEY not set — skipping categorization")
     else:
         from fintracker.categorizer.categorize import categorize_uncategorized

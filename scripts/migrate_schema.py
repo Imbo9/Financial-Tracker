@@ -5,7 +5,7 @@ Usage:
     uv run python scripts/migrate_schema.py
 """
 
-import fintracker.settings as settings
+from fintracker.settings import settings
 from fintracker.storage.db_insert import get_connection
 
 _MIGRATION = """

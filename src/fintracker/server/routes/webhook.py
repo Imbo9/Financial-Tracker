@@ -5,10 +5,10 @@ import logging
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-import fintracker.settings as settings
 from fintracker.ingestion.tasker_parser import parse_tasker_payload
 from fintracker.models.tasker import TaskerPayload
 from fintracker.notifications.telegram import notify_transaction
+from fintracker.settings import settings
 from fintracker.storage.db_insert import connection, insert_transaction
 
 log = logging.getLogger(__name__)
@@ -17,7 +17,9 @@ router = APIRouter()
 
 def _verify_signature(body: bytes, signature: str | None) -> bool:
     """Verify HMAC-SHA256(WEBHOOK_SECRET, body) == signature."""
-    expected = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    expected = hmac.new(
+        settings.WEBHOOK_SECRET.get_secret_value().encode(), body, hashlib.sha256
+    ).hexdigest()
     return hmac.compare_digest(signature or "", expected)
 
 
@@ -42,7 +44,9 @@ async def tasker_webhook(
         inserted = insert_transaction(conn, tx)
 
     if inserted:
-        notify_transaction(tx, token=settings.TELEGRAM_TOKEN, chat_id=settings.TELEGRAM_CHAT_ID)
+        notify_transaction(
+            tx, token=settings.TELEGRAM_TOKEN.get_secret_value(), chat_id=settings.TELEGRAM_CHAT_ID
+        )
         log.info("Tasker webhook: inserted %s", tx.dedup_hash[:8])
         return {"status": "ok"}
 

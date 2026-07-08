@@ -12,7 +12,7 @@ import jwt as pyjwt
 from fastapi import APIRouter, Cookie, HTTPException, Response
 from pydantic import BaseModel, Field
 
-import fintracker.settings as settings
+from fintracker.settings import settings
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -84,7 +84,7 @@ def _dummy_hash() -> str:
 
     Lazy (not module-level) so importing this module doesn't require APP_PASSWORD_HASH."""
     return bcrypt.hashpw(
-        b"#invalid#", bcrypt.gensalt(_bcrypt_cost(settings.APP_PASSWORD_HASH))
+        b"#invalid#", bcrypt.gensalt(_bcrypt_cost(settings.APP_PASSWORD_HASH.get_secret_value()))
     ).decode()
 
 
@@ -106,7 +106,7 @@ def _make_jwt() -> str:
         "exp": now + timedelta(seconds=_TOKEN_TTL_SECONDS),
         "jti": uuid.uuid4().hex,
     }
-    return pyjwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+    return pyjwt.encode(payload, settings.JWT_SECRET.get_secret_value(), algorithm="HS256")
 
 
 def verify_token(token: str) -> dict:
@@ -116,7 +116,7 @@ def verify_token(token: str) -> dict:
     """
     payload = pyjwt.decode(
         token,
-        settings.JWT_SECRET,
+        settings.JWT_SECRET.get_secret_value(),
         algorithms=["HS256"],
         issuer=_ISSUER,
         audience=_AUDIENCE,
@@ -136,7 +136,7 @@ def login(body: LoginRequest, response: Response) -> dict:
         raise HTTPException(status_code=429, detail="Too many failed attempts — try later")
     user_ok = hmac.compare_digest(body.username.encode(), settings.APP_USERNAME.encode())
     pass_ok = _verify_password(
-        body.password, settings.APP_PASSWORD_HASH if user_ok else _dummy_hash()
+        body.password, settings.APP_PASSWORD_HASH.get_secret_value() if user_ok else _dummy_hash()
     )
     if not (user_ok and pass_ok):
         _record_failure()

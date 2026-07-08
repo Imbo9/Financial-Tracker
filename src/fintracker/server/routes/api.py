@@ -7,9 +7,9 @@ import psycopg2.extras
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-import fintracker.settings as settings
 from fintracker.normalizer.hash import manual_dedup_hash
 from fintracker.server.routes.auth import verify_token
+from fintracker.settings import settings
 from fintracker.storage.db_insert import INSERT_SQL, connection
 
 log = logging.getLogger(__name__)

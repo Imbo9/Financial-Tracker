@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 import jwt
 
-import fintracker.settings as settings
+from fintracker.settings import settings
 
 log = logging.getLogger(__name__)
 
@@ -24,10 +24,12 @@ def _make_jwt() -> str:
         now = int(time.time())
         if _jwt_cache and _jwt_cache[1] > now + 60:
             return _jwt_cache[0]
-        if settings.ENABLE_BANKING_PRIVATE_KEY_B64:
+        if settings.ENABLE_BANKING_PRIVATE_KEY_B64.get_secret_value():
             import base64
 
-            pem = base64.b64decode(settings.ENABLE_BANKING_PRIVATE_KEY_B64).decode()
+            pem = base64.b64decode(
+                settings.ENABLE_BANKING_PRIVATE_KEY_B64.get_secret_value()
+            ).decode()
         else:
             pem = settings.ENABLE_BANKING_PRIVATE_KEY_PATH.read_text()
         exp = now + 3600
@@ -103,7 +105,7 @@ def _fetch_account_transactions(
 def fetch_transactions(days_back: int | None = None) -> dict[str, list[dict]]:
     """Return {account_uid: [raw_transaction, ...]} for all accounts."""
     if (
-        not settings.ENABLE_BANKING_PRIVATE_KEY_B64
+        not settings.ENABLE_BANKING_PRIVATE_KEY_B64.get_secret_value()
         and not settings.ENABLE_BANKING_PRIVATE_KEY_PATH.exists()
     ):
         raise OSError(

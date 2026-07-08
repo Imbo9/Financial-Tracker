@@ -4,13 +4,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-import fintracker.settings as settings
 from fintracker.server.routes.api import router as api_router
 from fintracker.server.routes.auth import router as auth_router
 from fintracker.server.routes.sync import router as sync_router
 from fintracker.server.routes.webhook import router as webhook_router
+from fintracker.settings import settings, setup_logging
 
-settings.setup_logging()
+setup_logging()
 
 log = logging.getLogger(__name__)
 

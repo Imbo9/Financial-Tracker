@@ -62,7 +62,7 @@ class TestTokenClaims:
         client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
         payload = pyjwt.decode(
             client.cookies["jwt"],
-            auth_module.settings.JWT_SECRET,
+            auth_module.settings.JWT_SECRET.get_secret_value(),
             algorithms=["HS256"],
             audience=auth_module._AUDIENCE,
         )
@@ -85,7 +85,7 @@ class TestTokenClaims:
                 "exp": now + timedelta(hours=1),
                 "jti": "x",
             },
-            auth_module.settings.JWT_SECRET,
+            auth_module.settings.JWT_SECRET.get_secret_value(),
             algorithm="HS256",
         )
         with pytest.raises(pyjwt.InvalidTokenError):

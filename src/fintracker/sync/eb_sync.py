@@ -1,10 +1,10 @@
 import logging
 from dataclasses import dataclass
 
-import fintracker.settings as settings
 from fintracker.ingestion.fetch_transactions import fetch_transactions
 from fintracker.normalizer.normalize import fetch_ecb_rates, normalize
 from fintracker.notifications.telegram import notify_transaction, send_telegram
+from fintracker.settings import settings
 from fintracker.storage.db_insert import connection
 from fintracker.storage.reconcile import reconcile_or_insert
 
@@ -19,7 +19,9 @@ class SyncStats:
 
 
 def _alert(text: str) -> None:
-    send_telegram(text, token=settings.TELEGRAM_TOKEN, chat_id=settings.TELEGRAM_CHAT_ID)
+    send_telegram(
+        text, token=settings.TELEGRAM_TOKEN.get_secret_value(), chat_id=settings.TELEGRAM_CHAT_ID
+    )
 
 
 def run_eb_sync(days_back: int = 2) -> SyncStats:
@@ -49,7 +51,9 @@ def run_eb_sync(days_back: int = 2) -> SyncStats:
                 result = reconcile_or_insert(conn, tx)
                 if result.action == "inserted":
                     notify_transaction(
-                        tx, token=settings.TELEGRAM_TOKEN, chat_id=settings.TELEGRAM_CHAT_ID
+                        tx,
+                        token=settings.TELEGRAM_TOKEN.get_secret_value(),
+                        chat_id=settings.TELEGRAM_CHAT_ID,
                     )
                     stats.inserted += 1
                 elif result.action == "reconciled":

@@ -1,95 +1,97 @@
 import json
 import logging
-import os
 from pathlib import Path
-from typing import Literal, cast
+from typing import Annotated, Literal
 
-from dotenv import load_dotenv
+from pydantic import SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
-ROOT = Path(__file__).resolve().parent.parent.parent  # src/fintracker/settings.py → project root
-load_dotenv(ROOT / "config" / ".env")
-
-
-def _get(key: str, default: str = "") -> str:
-    return os.getenv(key, default)
+ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-def _require(key: str) -> str:
-    val = os.getenv(key)
-    if not val:
-        raise OSError(f"Required env var not set: {key}")
-    return val
+class Settings(BaseSettings):
+    # UPPERCASE field names keep every call site (`settings.TELEGRAM_TOKEN`) unchanged.
+    model_config = SettingsConfigDict(
+        env_file=ROOT / "config" / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # Enable Banking
+    ENABLE_BANKING_APP_ID: str = ""
+    ENABLE_BANKING_PRIVATE_KEY_PATH: Path = Path("config/private_key.pem")
+    ENABLE_BANKING_PRIVATE_KEY_B64: SecretStr = SecretStr("")
+    ENABLE_BANKING_SESSION_ID: str = ""
+    ENABLE_BANKING_ACCESS_TOKEN: SecretStr = SecretStr("")
+    # NoDecode: pydantic-settings otherwise tries to JSON-decode the raw env value
+    # *before* our validator runs, which blows up on a blank var (see .env.example's
+    # `ENABLE_BANKING_ACCOUNT_IDS=` convention) — the validator below parses it instead.
+    ENABLE_BANKING_ACCOUNT_IDS: Annotated[list[str], NoDecode] = []
+
+    # Anthropic — only the categorizer needs it; pipeline skips with a warning if unset
+    ANTHROPIC_API_KEY: SecretStr = SecretStr("")
+
+    # Database
+    DATABASE_URL: str = "postgresql://user:changeme@localhost:5432/finance"
+
+    # Pipeline
+    FETCH_DAYS_BACK: int = 90
+    LOG_LEVEL: str = "INFO"
+
+    # Telegram — required by both server and pipeline (sync alerts)
+    TELEGRAM_TOKEN: SecretStr
+    TELEGRAM_CHAT_ID: str
+
+    # Server-only secrets — validated in validate_server_settings() at create_app(),
+    # not at import, so pipeline.py runs without dashboard credentials.
+    WEBHOOK_SECRET: SecretStr = SecretStr("")
+    APP_USERNAME: str = ""
+    APP_PASSWORD_HASH: SecretStr = SecretStr("")
+    JWT_SECRET: SecretStr = SecretStr("")
+
+    # Cookies / CORS
+    FRONTEND_URL: str = "http://localhost:5173"
+    COOKIE_SECURE: bool = True
+    # "lax" is safe because the Vercel proxy makes all API calls first-party
+    COOKIE_SAMESITE: Literal["lax", "none", "strict"] = "lax"
+
+    @field_validator("ENABLE_BANKING_ACCOUNT_IDS", mode="before")
+    @classmethod
+    def _parse_account_ids(cls, v: str | list[str] | None) -> list[str]:
+        if not v:
+            return []
+        return json.loads(v) if isinstance(v, str) else v
+
+    @field_validator("ENABLE_BANKING_PRIVATE_KEY_PATH", mode="after")
+    @classmethod
+    def _resolve_key_path(cls, v: Path) -> Path:
+        return v if v.is_absolute() else ROOT / v
+
+    def validate_server_settings(self) -> None:
+        missing = [
+            key
+            for key, val in {
+                "WEBHOOK_SECRET": self.WEBHOOK_SECRET.get_secret_value(),
+                "APP_USERNAME": self.APP_USERNAME,
+                "APP_PASSWORD_HASH": self.APP_PASSWORD_HASH.get_secret_value(),
+                "JWT_SECRET": self.JWT_SECRET.get_secret_value(),
+            }.items()
+            if not val
+        ]
+        if missing:
+            raise OSError(f"Required env vars not set: {', '.join(missing)}")
+        if len(self.WEBHOOK_SECRET.get_secret_value()) < 32:
+            raise OSError("WEBHOOK_SECRET must be at least 32 characters")
+        if len(self.JWT_SECRET.get_secret_value()) < 32:
+            raise OSError("JWT_SECRET must be at least 32 characters")
 
 
-# Enable Banking
-ENABLE_BANKING_APP_ID: str = _get("ENABLE_BANKING_APP_ID")
-# Path to RSA private key PEM — relative paths are resolved from project root
-_raw_key_path = _get("ENABLE_BANKING_PRIVATE_KEY_PATH", "config/private_key.pem")
-ENABLE_BANKING_PRIVATE_KEY_PATH: Path = (
-    Path(_raw_key_path) if Path(_raw_key_path).is_absolute() else ROOT / _raw_key_path
-)
-ENABLE_BANKING_SESSION_ID: str = _get("ENABLE_BANKING_SESSION_ID")
-ENABLE_BANKING_ACCESS_TOKEN: str = _get("ENABLE_BANKING_ACCESS_TOKEN")
-ENABLE_BANKING_ACCOUNT_IDS: list[str] = json.loads(_get("ENABLE_BANKING_ACCOUNT_IDS") or "[]")
-
-# Anthropic — only needed by the categorizer pipeline, not the server
-ANTHROPIC_API_KEY: str = _get("ANTHROPIC_API_KEY")
-
-# Database
-DATABASE_URL: str = _get("DATABASE_URL", "postgresql://user:changeme@localhost:5432/finance")
-
-# Pipeline
-FETCH_DAYS_BACK: int = int(_get("FETCH_DAYS_BACK", "90"))
-LOG_LEVEL: str = _get("LOG_LEVEL", "INFO")
-
-# Telegram — needed by both the server and the pipeline (sync alerts)
-TELEGRAM_TOKEN: str = _require("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID: str = _require("TELEGRAM_CHAT_ID")
-
-# Server-only secrets — validated by validate_server_settings() at server startup,
-# so pipeline.py (local runs and sync-cron) doesn't need dashboard credentials.
-WEBHOOK_SECRET: str = _get("WEBHOOK_SECRET")
-APP_USERNAME: str = _get("APP_USERNAME")
-APP_PASSWORD_HASH: str = _get("APP_PASSWORD_HASH")
-JWT_SECRET: str = _get("JWT_SECRET")
-
-
-def validate_server_settings() -> None:
-    missing = [
-        key
-        for key, val in {
-            "WEBHOOK_SECRET": WEBHOOK_SECRET,
-            "APP_USERNAME": APP_USERNAME,
-            "APP_PASSWORD_HASH": APP_PASSWORD_HASH,
-            "JWT_SECRET": JWT_SECRET,
-        }.items()
-        if not val
-    ]
-    if missing:
-        raise OSError(f"Required env vars not set: {', '.join(missing)}")
-    if len(WEBHOOK_SECRET) < 32:
-        raise OSError("WEBHOOK_SECRET must be at least 32 characters")
-    if len(JWT_SECRET) < 32:
-        raise OSError("JWT_SECRET must be at least 32 characters")
-
-
-# Cookie settings — override per environment
-FRONTEND_URL: str = _get("FRONTEND_URL", "http://localhost:5173")
-COOKIE_SECURE: bool = _get("COOKIE_SECURE", "true").lower() == "true"
-# "lax" is safe because the Vercel proxy makes all API calls first-party
-# cast: value always comes from a controlled env var / hardcoded default, but _get()
-# returns plain str — this tells the type checker what Response.set_cookie() expects.
-COOKIE_SAMESITE: Literal["lax", "none", "strict"] = cast(
-    Literal["lax", "none", "strict"], _get("COOKIE_SAMESITE", "lax")
-)
-
-# Enable Banking — base64 private key for cloud deployments (overrides file path)
-ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")
+settings = Settings()
 
 
 def setup_logging() -> None:
     logging.basicConfig(
-        level=getattr(logging, LOG_LEVEL, logging.INFO),
+        level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
         format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S",
     )

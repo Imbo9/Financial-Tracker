@@ -3,7 +3,7 @@ import logging
 
 import anthropic
 
-import fintracker.settings as settings
+from fintracker.settings import settings
 
 log = logging.getLogger(__name__)
 
@@ -65,10 +65,10 @@ def _categorize_batch(client: anthropic.Anthropic, merchants: list[str]) -> list
 
 def categorize_uncategorized(conn) -> int:
     """Fetch uncategorized real transactions, call Claude, update DB. Returns count updated."""
-    if not settings.ANTHROPIC_API_KEY:
+    if not settings.ANTHROPIC_API_KEY.get_secret_value():
         raise OSError("ANTHROPIC_API_KEY not set in config/.env")
 
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY.get_secret_value())
 
     with conn.cursor() as cur:
         cur.execute(

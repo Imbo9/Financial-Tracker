@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import Field
 
-import fintracker.settings as settings
+from fintracker.settings import settings
 from fintracker.sync.eb_sync import run_eb_sync
 
 log = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ async def trigger_sync(
 ) -> dict:
     if not hmac.compare_digest(
         (x_webhook_secret or "").encode(),
-        settings.WEBHOOK_SECRET.encode(),
+        settings.WEBHOOK_SECRET.get_secret_value().encode(),
     ):
         raise HTTPException(status_code=401, detail="Invalid webhook secret")
 
