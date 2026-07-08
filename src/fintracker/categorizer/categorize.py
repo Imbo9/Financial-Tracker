@@ -1,13 +1,9 @@
 import json
 import logging
-import sys
-from pathlib import Path
 
 import anthropic
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import config.settings as settings
+import fintracker.settings as settings
 
 log = logging.getLogger(__name__)
 

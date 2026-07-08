@@ -5,13 +5,8 @@ Usage:
     uv run python scripts/migrate_schema.py
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-import config.settings as settings
-from src.storage.db_insert import get_connection
+import fintracker.settings as settings
+from fintracker.storage.db_insert import get_connection
 
 _MIGRATION = """
 ALTER TABLE transactions

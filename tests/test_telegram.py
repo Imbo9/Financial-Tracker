@@ -1,13 +1,9 @@
-import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.models.transaction import NormalizedTransaction
-from src.notifications.telegram import build_message, send_telegram
+from fintracker.models.transaction import NormalizedTransaction
+from fintracker.notifications.telegram import build_message, send_telegram
 
 
 def _tx(**kwargs) -> NormalizedTransaction:
@@ -54,7 +50,7 @@ class TestBuildMessage:
 
 class TestSendTelegram:
     def test_send_calls_telegram_api(self):
-        with patch("src.notifications.telegram.httpx.post") as mock_post:
+        with patch("fintracker.notifications.telegram.httpx.post") as mock_post:
             mock_post.return_value = MagicMock(status_code=200)
             mock_post.return_value.raise_for_status = MagicMock()
             send_telegram("test message", token="tok", chat_id="123")
@@ -63,18 +59,20 @@ class TestSendTelegram:
             assert "sendMessage" in call_kwargs[0][0]
 
     def test_send_skipped_when_no_token(self):
-        with patch("src.notifications.telegram.httpx.post") as mock_post:
+        with patch("fintracker.notifications.telegram.httpx.post") as mock_post:
             send_telegram("test message", token="", chat_id="123")
             mock_post.assert_not_called()
 
     def test_send_exception_is_swallowed(self):
-        with patch("src.notifications.telegram.httpx.post", side_effect=Exception("timeout")):
+        with patch(
+            "fintracker.notifications.telegram.httpx.post", side_effect=Exception("timeout")
+        ):
             send_telegram("test", token="tok", chat_id="123")  # must not raise
 
     def test_notify_transaction_delegates(self):
-        from src.notifications.telegram import notify_transaction
+        from fintracker.notifications.telegram import notify_transaction
 
-        with patch("src.notifications.telegram.send_telegram") as mock_send:
+        with patch("fintracker.notifications.telegram.send_telegram") as mock_send:
             notify_transaction(
                 _tx(amount=-5.0, merchant_name="Netflix"), token="tok", chat_id="123"
             )

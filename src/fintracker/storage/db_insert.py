@@ -1,14 +1,10 @@
 import logging
-import sys
 from contextlib import contextmanager
-from pathlib import Path
 
 import psycopg2
 import psycopg2.extras
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from src.models.transaction import NormalizedTransaction
+from fintracker.models.transaction import NormalizedTransaction
 
 log = logging.getLogger(__name__)
 

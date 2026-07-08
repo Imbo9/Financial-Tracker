@@ -2,18 +2,14 @@ import hashlib
 import hmac
 import json
 import logging
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-import config.settings as settings
-from src.ingestion.tasker_parser import parse_tasker_payload
-from src.models.tasker import TaskerPayload
-from src.notifications.telegram import notify_transaction
-from src.storage.db_insert import connection, insert_transaction
+import fintracker.settings as settings
+from fintracker.ingestion.tasker_parser import parse_tasker_payload
+from fintracker.models.tasker import TaskerPayload
+from fintracker.notifications.telegram import notify_transaction
+from fintracker.storage.db_insert import connection, insert_transaction
 
 log = logging.getLogger(__name__)
 router = APIRouter()

@@ -1,16 +1,12 @@
 import logging
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import config.settings as settings
-from src.ingestion.fetch_transactions import fetch_transactions
-from src.normalizer.normalize import fetch_ecb_rates, normalize
-from src.notifications.telegram import notify_transaction, send_telegram
-from src.storage.db_insert import connection
-from src.storage.reconcile import reconcile_or_insert
+import fintracker.settings as settings
+from fintracker.ingestion.fetch_transactions import fetch_transactions
+from fintracker.normalizer.normalize import fetch_ecb_rates, normalize
+from fintracker.notifications.telegram import notify_transaction, send_telegram
+from fintracker.storage.db_insert import connection
+from fintracker.storage.reconcile import reconcile_or_insert
 
 log = logging.getLogger(__name__)
 
@@ -43,10 +39,7 @@ def run_eb_sync(days_back: int = 2) -> SyncStats:
 
     if not raw_by_account:
         log.error("EB sync returned no accounts — session likely expired")
-        _alert(
-            "⚠️ EB sync returned no accounts — session likely expired. "
-            "Renew: uv run python src/auth/enable_banking_auth.py"
-        )
+        _alert("⚠️ EB sync returned no accounts — session likely expired. Renew: uv run auth")
         return stats
 
     ecb_rates = fetch_ecb_rates()

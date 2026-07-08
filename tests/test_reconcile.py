@@ -1,13 +1,9 @@
-import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.models.transaction import NormalizedTransaction
-from src.storage.reconcile import reconcile_or_insert
+from fintracker.models.transaction import NormalizedTransaction
+from fintracker.storage.reconcile import reconcile_or_insert
 
 
 def _tx(**kwargs) -> NormalizedTransaction:

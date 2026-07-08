@@ -1,12 +1,8 @@
-import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.ingestion.tasker_parser import _parse_raw_text, parse_tasker_payload
-from src.models.tasker import TaskerPayload
+from fintracker.ingestion.tasker_parser import _parse_raw_text, parse_tasker_payload
+from fintracker.models.tasker import TaskerPayload
 
 
 def _payload(**kwargs) -> TaskerPayload:

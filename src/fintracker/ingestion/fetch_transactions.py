@@ -1,17 +1,13 @@
 import logging
-import sys
 import threading
 import time
 from datetime import date, timedelta
-from pathlib import Path
 from typing import Any
 
 import httpx
 import jwt
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-import config.settings as settings
+import fintracker.settings as settings
 
 log = logging.getLogger(__name__)
 

@@ -1,12 +1,8 @@
 import re
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from src.models.tasker import TaskerPayload
-from src.models.transaction import NormalizedTransaction
-from src.normalizer.hash import tasker_dedup_hash
+from fintracker.models.tasker import TaskerPayload
+from fintracker.models.transaction import NormalizedTransaction
+from fintracker.normalizer.hash import tasker_dedup_hash
 
 # Revolut push-notification patterns (IT locale, English text)
 # Group names: ccy, amount, merchant (optional)

@@ -1,12 +1,8 @@
 import logging
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from src.models.reconciliation import ReconciliationMatch, ReconciliationResult
-from src.models.transaction import NormalizedTransaction
-from src.storage.db_insert import INSERT_SQL as _INSERT
+from fintracker.models.reconciliation import ReconciliationMatch, ReconciliationResult
+from fintracker.models.transaction import NormalizedTransaction
+from fintracker.storage.db_insert import INSERT_SQL as _INSERT
 
 log = logging.getLogger(__name__)
 

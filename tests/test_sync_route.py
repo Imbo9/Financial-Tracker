@@ -1,18 +1,14 @@
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 _SECRET = "test-webhook-secret-for-pytest!!"
 
 
 @pytest.fixture
 def client():
-    from src.server.app import create_app
+    from fintracker.server.app import create_app
 
     return TestClient(create_app())
 
@@ -27,7 +23,7 @@ class TestSyncRoute:
         assert resp.status_code == 401
 
     def test_valid_secret_starts_sync(self, client):
-        with patch("src.server.routes.sync.threading.Thread") as mock_thread:
+        with patch("fintracker.server.routes.sync.threading.Thread") as mock_thread:
             mock_thread.return_value.start = MagicMock()
             resp = client.post("/sync", headers={"X-Webhook-Secret": _SECRET})
         assert resp.status_code == 200
@@ -35,13 +31,13 @@ class TestSyncRoute:
         mock_thread.return_value.start.assert_called_once()
 
     def test_days_back_default_is_2(self, client):
-        with patch("src.server.routes.sync.threading.Thread") as mock_thread:
+        with patch("fintracker.server.routes.sync.threading.Thread") as mock_thread:
             mock_thread.return_value.start = MagicMock()
             resp = client.post("/sync", headers={"X-Webhook-Secret": _SECRET})
         assert resp.json()["days_back"] == 2
 
     def test_days_back_custom_value(self, client):
-        with patch("src.server.routes.sync.threading.Thread") as mock_thread:
+        with patch("fintracker.server.routes.sync.threading.Thread") as mock_thread:
             mock_thread.return_value.start = MagicMock()
             resp = client.post("/sync?days_back=7", headers={"X-Webhook-Secret": _SECRET})
         assert resp.json()["days_back"] == 7

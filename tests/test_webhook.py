@@ -1,14 +1,10 @@
 import hashlib
 import hmac
 import json
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 _SECRET = "test-webhook-secret-for-pytest!!"
 
@@ -20,7 +16,7 @@ def _sign(body: dict) -> str:
 
 @pytest.fixture
 def client():
-    from src.server.app import create_app
+    from fintracker.server.app import create_app
 
     return TestClient(create_app())
 
@@ -53,9 +49,9 @@ class TestWebhookEndpoint:
         body = json.dumps(VALID_PAYLOAD, separators=(",", ":")).encode()
         sig = hmac.new(_SECRET.encode(), body, hashlib.sha256).hexdigest()
         with (
-            patch("src.server.routes.webhook.connection") as mock_conn,
-            patch("src.server.routes.webhook.insert_transaction", return_value=True),
-            patch("src.server.routes.webhook.notify_transaction"),
+            patch("fintracker.server.routes.webhook.connection") as mock_conn,
+            patch("fintracker.server.routes.webhook.insert_transaction", return_value=True),
+            patch("fintracker.server.routes.webhook.notify_transaction"),
         ):
             mock_conn.return_value.__enter__ = MagicMock(return_value=MagicMock())
             mock_conn.return_value.__exit__ = MagicMock(return_value=False)
@@ -71,9 +67,9 @@ class TestWebhookEndpoint:
         body = json.dumps(VALID_PAYLOAD, separators=(",", ":")).encode()
         sig = hmac.new(_SECRET.encode(), body, hashlib.sha256).hexdigest()
         with (
-            patch("src.server.routes.webhook.connection") as mock_conn,
-            patch("src.server.routes.webhook.insert_transaction", return_value=False),
-            patch("src.server.routes.webhook.notify_transaction"),
+            patch("fintracker.server.routes.webhook.connection") as mock_conn,
+            patch("fintracker.server.routes.webhook.insert_transaction", return_value=False),
+            patch("fintracker.server.routes.webhook.notify_transaction"),
         ):
             mock_conn.return_value.__enter__ = MagicMock(return_value=MagicMock())
             mock_conn.return_value.__exit__ = MagicMock(return_value=False)

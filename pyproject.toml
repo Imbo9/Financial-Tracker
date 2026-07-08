@@ -1,7 +1,11 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "revolut-connector"
+name = "fintracker"
 version = "0.1.0"
-description = "Pipeline di finanza personale: Revolut → Postgres via Enable Banking API"
+description = "Personal finance hub: Revolut → Postgres via Enable Banking, AI categorization, dashboard"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -20,8 +24,8 @@ dependencies = [
 ]
 
 [project.scripts]
-pipeline = "pipeline:main"
-auth     = "src.auth.enable_banking_auth:main"
+pipeline = "fintracker.pipeline:main"
+auth     = "fintracker.auth.enable_banking_auth:main"
 
 [dependency-groups]
 dev = [
@@ -33,11 +37,8 @@ dev = [
     "pyrefly>=1.1.1",
 ]
 
-[tool.pyrefly]
-# Every module does `sys.path.insert(0, <repo root>)` before importing `src.*` / `config.*`
-# (legacy import style, removed in a later refactor phase). Without this, pyrefly infers
-# `src/` as the import root and can't resolve those absolute imports.
-search-path = ["."]
+[tool.hatch.build.targets.wheel]
+packages = ["src/fintracker"]
 
 [tool.ruff]
 line-length = 100
@@ -54,3 +55,9 @@ select = [
     "C4",  # comprehensions
     "RUF", # regole ruff native
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fintracker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

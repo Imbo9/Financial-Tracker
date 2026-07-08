@@ -8,7 +8,7 @@ Prerequisites (do once on the dashboard):
   4. Add http://localhost:8080/callback to Allowed redirect URLs
 
 Run on the host (not in a container) — needs a browser for the OAuth redirect:
-    uv run python src/auth/enable_banking_auth.py
+    uv run auth
 
 Writes ENABLE_BANKING_SESSION_ID, ENABLE_BANKING_ACCESS_TOKEN, and
 ENABLE_BANKING_ACCOUNT_IDS to config/.env when complete (~90 days validity).
@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import secrets
-import sys
 import time
 import webbrowser
 from datetime import UTC, datetime, timedelta
@@ -28,8 +27,6 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 import jwt
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")

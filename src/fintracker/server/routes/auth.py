@@ -1,21 +1,18 @@
 import hmac
 import logging
-import sys
 import threading
 import time
 import uuid
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from pathlib import Path
 
 import bcrypt
 import jwt as pyjwt
 from fastapi import APIRouter, Cookie, HTTPException, Response
 from pydantic import BaseModel, Field
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
-import config.settings as settings
+import fintracker.settings as settings
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])

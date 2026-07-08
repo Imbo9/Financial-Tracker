@@ -1,7 +1,5 @@
 import logging
-import sys
 from datetime import datetime
-from pathlib import Path
 from typing import Annotated, Any
 
 import jwt as pyjwt
@@ -9,12 +7,10 @@ import psycopg2.extras
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
-
-import config.settings as settings
-from src.normalizer.hash import manual_dedup_hash
-from src.server.routes.auth import verify_token
-from src.storage.db_insert import INSERT_SQL, connection
+import fintracker.settings as settings
+from fintracker.normalizer.hash import manual_dedup_hash
+from fintracker.server.routes.auth import verify_token
+from fintracker.storage.db_insert import INSERT_SQL, connection
 
 log = logging.getLogger(__name__)
 router = APIRouter()

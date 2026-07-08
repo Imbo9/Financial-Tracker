@@ -1,11 +1,6 @@
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from datetime import UTC
 
-from src.normalizer.hash import eb_dedup_hash, manual_dedup_hash, tasker_dedup_hash
+from fintracker.normalizer.hash import eb_dedup_hash, manual_dedup_hash, tasker_dedup_hash
 
 
 class TestEbDedupHash:

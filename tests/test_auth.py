@@ -1,14 +1,9 @@
-import sys
-from pathlib import Path
+from datetime import UTC
 
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from datetime import UTC
-
-from src.server.routes import auth as auth_module
+from fintracker.server.routes import auth as auth_module
 
 _USERNAME = "testuser"
 _PASSWORD = "testpassword"
@@ -16,7 +11,7 @@ _PASSWORD = "testpassword"
 
 @pytest.fixture
 def client():
-    from src.server.app import create_app
+    from fintracker.server.app import create_app
 
     return TestClient(create_app())
 

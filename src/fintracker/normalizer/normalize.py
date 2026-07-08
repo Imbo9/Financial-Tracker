@@ -1,16 +1,12 @@
 import logging
 import re
-import sys
 import time
 from datetime import UTC, datetime
-from pathlib import Path
 
 import httpx
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from src.models.transaction import NormalizedTransaction
-from src.normalizer.hash import eb_dedup_hash
+from fintracker.models.transaction import NormalizedTransaction
+from fintracker.normalizer.hash import eb_dedup_hash
 
 log = logging.getLogger(__name__)
 
