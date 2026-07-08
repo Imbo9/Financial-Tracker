@@ -53,6 +53,8 @@ def _categorize_batch(client: anthropic.Anthropic, merchants: list[str]) -> list
             ],
             messages=[{"role": "user", "content": json.dumps(merchants, ensure_ascii=False)}],
         )
+        # pyrefly: ignore[missing-attribute]  # no `tools=` param on this call, so the SDK
+        # always returns a TextBlock here despite `.content`'s broader declared union type
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
             parts = raw.split("```")

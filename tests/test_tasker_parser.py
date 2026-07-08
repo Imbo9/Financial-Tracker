@@ -1,6 +1,7 @@
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -9,7 +10,10 @@ from src.models.tasker import TaskerPayload
 
 
 def _payload(**kwargs) -> TaskerPayload:
-    defaults = {
+    # Explicit `Any` values: this dict deliberately mixes str/datetime and is later
+    # overridden with arbitrary per-test kwargs before being splatted into the pydantic
+    # model, so the values can't be narrowed to the model's Literal fields ahead of time.
+    defaults: dict[str, Any] = {
         "raw_text": "Hai pagato €12,50 a Esselunga",
         "amount": "12.50",
         "currency": "EUR",

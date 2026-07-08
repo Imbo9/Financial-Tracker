@@ -1,6 +1,7 @@
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -10,7 +11,10 @@ from src.storage.reconcile import reconcile_or_insert
 
 
 def _tx(**kwargs) -> NormalizedTransaction:
-    defaults = {
+    # Explicit `Any` values: this dict deliberately mixes str/datetime/float and is later
+    # overridden with arbitrary per-test kwargs before being splatted into the pydantic
+    # model, so the values can't be narrowed to the model's Literal fields ahead of time.
+    defaults: dict[str, Any] = {
         "dedup_hash": "abc123",
         "booking_date": datetime(2026, 6, 7, 10, 0, 0, tzinfo=UTC),
         "amount": -12.50,
@@ -101,6 +105,7 @@ class TestReconcileOrInsert:
 
         result = reconcile_or_insert(conn, _tx())
         assert result.action == "reconciled"
+        assert result.match is not None
         assert result.match.pending_id == 99
         # keep-hash UPDATE passes 6 args (no dedup_hash), not 7
         update_args = cur.execute.call_args_list[-1][0][1]

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Literal, cast
 
 from dotenv import load_dotenv
 
@@ -76,7 +77,11 @@ def validate_server_settings() -> None:
 FRONTEND_URL: str = _get("FRONTEND_URL", "http://localhost:5173")
 COOKIE_SECURE: bool = _get("COOKIE_SECURE", "true").lower() == "true"
 # "lax" is safe because the Vercel proxy makes all API calls first-party
-COOKIE_SAMESITE: str = _get("COOKIE_SAMESITE", "lax")
+# cast: value always comes from a controlled env var / hardcoded default, but _get()
+# returns plain str — this tells the type checker what Response.set_cookie() expects.
+COOKIE_SAMESITE: Literal["lax", "none", "strict"] = cast(
+    Literal["lax", "none", "strict"], _get("COOKIE_SAMESITE", "lax")
+)
 
 # Enable Banking — base64 private key for cloud deployments (overrides file path)
 ENABLE_BANKING_PRIVATE_KEY_B64: str = _get("ENABLE_BANKING_PRIVATE_KEY_B64")

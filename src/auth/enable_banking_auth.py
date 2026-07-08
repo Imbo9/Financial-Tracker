@@ -98,7 +98,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
             self.send_response(204)
             self.end_headers()
 
-    def log_message(self, *args):
+    def log_message(self, format: str, *args: object) -> None:
         pass  # suppress HTTP access log
 
 
