@@ -20,11 +20,9 @@ def main() -> None:
     args = parser.parse_args()
 
     from fintracker.storage.db import direct_connection
-    from fintracker.storage.db_insert import ensure_schema
 
     log.info("Connecting to database ...")
     conn = direct_connection()
-    ensure_schema(conn)
 
     if not args.skip_fetch:
         from fintracker.sync.eb_sync import run_eb_sync
