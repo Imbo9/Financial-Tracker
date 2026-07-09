@@ -11,12 +11,13 @@ interface Props {
 
 export function AnimatedNumber({ value, decimals = 2, prefix = '', suffix = '', duration = 800, className }: Props) {
   const [display, setDisplay] = useState(0);
+  const displayRef = useRef(0);
   const frameRef = useRef<number>(0);
   const startRef = useRef<number>(0);
   const fromRef  = useRef<number>(0);
 
   useEffect(() => {
-    fromRef.current = display;
+    fromRef.current = displayRef.current;
     startRef.current = 0;
     cancelAnimationFrame(frameRef.current);
 
@@ -25,7 +26,9 @@ export function AnimatedNumber({ value, decimals = 2, prefix = '', suffix = '', 
       const progress = Math.min((ts - startRef.current) / duration, 1);
       // Ease out expo
       const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      setDisplay(fromRef.current + (value - fromRef.current) * eased);
+      const next = fromRef.current + (value - fromRef.current) * eased;
+      displayRef.current = next;
+      setDisplay(next);
       if (progress < 1) frameRef.current = requestAnimationFrame(animate);
     };
 
