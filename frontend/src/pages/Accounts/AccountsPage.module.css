@@ -21,6 +21,14 @@
   gap: 24px;
 }
 
+.stateMsg {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
 /* Hero */
 .hero {
   background: var(--bg-surface);
