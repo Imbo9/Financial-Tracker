@@ -140,3 +140,18 @@ select.input option { background: var(--bg-elevated); }
 .submitBtn:hover { transform: translateY(-1px); }
 .submitIncome  { background: var(--income);  color: #000; box-shadow: 0 4px 20px rgba(46,213,115,0.3); }
 .submitExpense { background: var(--expense); color: #fff; box-shadow: 0 4px 20px rgba(255,71,87,0.3); }
+
+.fieldError {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--expense);
+  margin-top: 2px;
+}
+
+.formError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--expense);
+  text-align: center;
+  margin-top: 2px;
+}
