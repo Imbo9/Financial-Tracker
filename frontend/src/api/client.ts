@@ -1,4 +1,4 @@
-﻿import axios, { type AxiosError } from 'axios';
+import axios, { type AxiosError, type AxiosResponse } from 'axios';
 import type {
   Transaction,
   TransactionsResponse,
@@ -25,33 +25,31 @@ http.interceptors.response.use(
   },
 );
 
+// Backend wraps every response in { data: ... } — unwrap once here.
+const unwrap = <T>(r: AxiosResponse<{ data: T }>): T => r.data.data;
+
 export const api = {
   auth: {
     login: (data: { username: string; password: string }): Promise<{ ok: boolean }> =>
-      http.post('/auth/login', data).then(r => r.data),
-
-    logout: (): Promise<void> =>
-      http.post('/auth/logout').then(() => undefined),
+      http.post('/v1/auth/login', data).then(unwrap<{ ok: boolean }>),
+    logout: (): Promise<void> => http.post('/v1/auth/logout').then(() => undefined),
+    me: (): Promise<{ username: string }> =>
+      http.get('/v1/auth/me').then(unwrap<{ username: string }>),
   },
-
   transactions: {
     list: (filters: TransactionFilters = {}): Promise<TransactionsResponse> =>
-      http.get('/transactions', { params: filters }).then(r => r.data),
-
+      http.get('/v1/transactions', { params: filters }).then(unwrap<TransactionsResponse>),
     create: (data: Partial<Transaction>): Promise<Transaction> =>
-      http.post('/transactions', data).then(r => r.data),
+      http.post('/v1/transactions', data).then(unwrap<Transaction>),
   },
-
   stats: {
-    categories: (params: { days_back?: number; direction?: string } = {}): Promise<CategoryStat[]> =>
-      http.get('/stats/categories', { params }).then(r => r.data),
-
+    categories: (params: { days_back?: number } = {}): Promise<CategoryStat[]> =>
+      http.get('/v1/stats/categories', { params }).then(unwrap<CategoryStat[]>),
     monthly: (params: { months?: number } = {}): Promise<MonthlyStat[]> =>
-      http.get('/stats/monthly', { params }).then(r => r.data),
+      http.get('/v1/stats/monthly', { params }).then(unwrap<MonthlyStat[]>),
   },
-
   accounts: {
     list: (): Promise<AccountsResponse> =>
-      http.get('/accounts').then(r => r.data),
+      http.get('/v1/accounts').then(unwrap<AccountsResponse>),
   },
 };
