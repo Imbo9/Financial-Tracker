@@ -63,3 +63,5 @@ known-first-party = ["fintracker"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["integration: requires a real Postgres (docker compose up db -d)"]
+addopts = "-m 'not integration'"
