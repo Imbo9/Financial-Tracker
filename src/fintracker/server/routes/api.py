@@ -11,10 +11,9 @@ from fintracker.storage.db import db_conn
 
 log = logging.getLogger(__name__)
 
-# Dual routers: same handlers, legacy keeps today's bare shapes for the live
-# frontend; /v1 wraps in {"data": ...}. Legacy router dies in Task 5.8.
+# All dashboard routes are guarded by require_jwt and served under /v1
+# (response envelope {"data": ...}). The legacy unversioned mount was removed at cutover.
 router_v1 = APIRouter(dependencies=[Depends(require_jwt)])
-router_legacy = APIRouter(dependencies=[Depends(require_jwt)])
 
 
 class ManualTransactionIn(BaseModel):
@@ -91,26 +90,9 @@ def list_transactions_v1(
     return {"data": _list_transactions(page, page_size, days_back, category, direction, search)}
 
 
-@router_legacy.get("/transactions")
-def list_transactions_legacy(
-    page: PageQ = 1,
-    page_size: PageSizeQ = 50,
-    days_back: DaysBackQ = 30,
-    category: str | None = None,
-    direction: DirectionQ = None,
-    search: str | None = None,
-) -> dict:
-    return _list_transactions(page, page_size, days_back, category, direction, search)
-
-
 @router_v1.post("/transactions", status_code=201)
 def create_transaction_v1(body: ManualTransactionIn) -> dict:
     return {"data": _create_transaction(body)}
-
-
-@router_legacy.post("/transactions", status_code=201)
-def create_transaction_legacy(body: ManualTransactionIn) -> dict:
-    return _create_transaction(body)
 
 
 @router_v1.get("/stats/categories")
@@ -118,26 +100,11 @@ def stats_categories_v1(days_back: DaysBackQ = 30) -> dict:
     return {"data": _stats_categories(days_back)}
 
 
-@router_legacy.get("/stats/categories")
-def stats_categories_legacy(days_back: DaysBackQ = 30) -> list[dict]:
-    return _stats_categories(days_back)
-
-
 @router_v1.get("/stats/monthly")
 def stats_monthly_v1(months: MonthsQ = 12) -> dict:
     return {"data": _stats_monthly(months)}
 
 
-@router_legacy.get("/stats/monthly")
-def stats_monthly_legacy(months: MonthsQ = 12) -> list[dict]:
-    return _stats_monthly(months)
-
-
 @router_v1.get("/accounts")
 def accounts_v1() -> dict:
     return {"data": _accounts()}
-
-
-@router_legacy.get("/accounts")
-def accounts_legacy() -> dict:
-    return _accounts()

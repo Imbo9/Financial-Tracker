@@ -17,41 +17,35 @@ def client():
 
 
 class TestLogin:
-    def test_success_returns_200_and_sets_cookie(self, client):
-        r = client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
-        assert r.status_code == 200
-        assert r.json() == {"ok": True}
-        assert "jwt" in client.cookies
-
     def test_wrong_password_returns_401(self, client):
-        r = client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": "wrong"})
         assert r.status_code == 401
         assert "jwt" not in client.cookies
 
     def test_wrong_username_returns_401(self, client):
-        r = client.post("/auth/login", json={"username": "nobody", "password": _PASSWORD})
+        r = client.post("/v1/auth/login", json={"username": "nobody", "password": _PASSWORD})
         assert r.status_code == 401
 
     def test_missing_body_returns_422(self, client):
-        r = client.post("/auth/login", json={})
+        r = client.post("/v1/auth/login", json={})
         assert r.status_code == 422
 
 
 class TestLoginHardening:
     def test_non_ascii_username_returns_401_not_500(self, client):
-        r = client.post("/auth/login", json={"username": "tèst-üser", "password": _PASSWORD})
+        r = client.post("/v1/auth/login", json={"username": "tèst-üser", "password": _PASSWORD})
         assert r.status_code == 401
 
     def test_nul_byte_password_returns_401_not_500(self, client):
-        r = client.post("/auth/login", json={"username": _USERNAME, "password": "pass\x00word"})
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": "pass\x00word"})
         assert r.status_code == 401
 
     def test_overlong_password_returns_422(self, client):
-        r = client.post("/auth/login", json={"username": _USERNAME, "password": "x" * 129})
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": "x" * 129})
         assert r.status_code == 422
 
     def test_empty_username_returns_422(self, client):
-        r = client.post("/auth/login", json={"username": "", "password": _PASSWORD})
+        r = client.post("/v1/auth/login", json={"username": "", "password": _PASSWORD})
         assert r.status_code == 422
 
 
@@ -59,7 +53,7 @@ class TestTokenClaims:
     def test_token_carries_hardening_claims(self, client):
         import jwt as pyjwt
 
-        client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
         payload = pyjwt.decode(
             client.cookies["jwt"],
             auth_module.settings.JWT_SECRET.get_secret_value(),
@@ -93,29 +87,18 @@ class TestTokenClaims:
 
 
 class TestLogout:
-    def test_logout_returns_204(self, client):
-        client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
-        r = client.post("/auth/logout")
-        assert r.status_code == 204
-
-    def test_logout_clears_cookie(self, client):
-        client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
-        assert "jwt" in client.cookies
-        client.post("/auth/logout")
-        assert not client.cookies.get("jwt")
-
     def test_logout_revokes_token_server_side(self, client):
         import jwt as pyjwt
 
-        client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
         token = client.cookies["jwt"]
         auth_module.verify_token(token)  # valid before logout
-        client.post("/auth/logout")
+        client.post("/v1/auth/logout")
         with pytest.raises(pyjwt.InvalidTokenError):
             auth_module.verify_token(token)
 
     def test_logout_without_cookie_still_204(self, client):
-        r = client.post("/auth/logout")
+        r = client.post("/v1/auth/logout")
         assert r.status_code == 204
 
 
@@ -131,17 +114,17 @@ def _reset_auth_state():
 class TestLoginRateLimit:
     def test_locked_after_five_failures_even_with_valid_credentials(self, client):
         for _ in range(5):
-            r = client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
+            r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": "wrong"})
             assert r.status_code == 401
-        r = client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
         assert r.status_code == 429
 
     def test_successful_login_clears_the_counter(self, client):
         for _ in range(4):
-            client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
-        r = client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+            client.post("/v1/auth/login", json={"username": _USERNAME, "password": "wrong"})
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
         assert r.status_code == 200
-        r = client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": "wrong"})
         assert r.status_code == 401  # counter reset - not 429
 
 
@@ -198,6 +181,6 @@ class TestErrorShapeGlobal:
         assert body["error"]["code"] == 404
 
     def test_login_422_has_error_envelope_no_pydantic_details(self, client):
-        r = client.post("/auth/login", json={})
+        r = client.post("/v1/auth/login", json={})
         assert r.status_code == 422
         assert r.json() == {"error": {"code": 422, "message": "Invalid request"}}

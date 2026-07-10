@@ -7,9 +7,7 @@ from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from fintracker.server.routes.api import router_legacy as api_legacy
 from fintracker.server.routes.api import router_v1 as api_v1
-from fintracker.server.routes.auth import router as auth_legacy
 from fintracker.server.routes.auth import router_v1 as auth_v1
 from fintracker.server.routes.sync import router as sync_router
 from fintracker.server.routes.webhook import router as webhook_router
@@ -64,12 +62,9 @@ def create_app() -> FastAPI:
     app.include_router(webhook_router)
     app.include_router(sync_router)
 
-    # Dashboard API — versioned. Legacy mount kept until the frontend ships /v1
-    # (removed in Task 5.8).
+    # Dashboard API — versioned under /v1 (legacy unversioned mount removed at cutover).
     app.include_router(api_v1, prefix="/v1")
     app.include_router(auth_v1, prefix="/v1")
-    app.include_router(api_legacy)
-    app.include_router(auth_legacy)
 
     @app.get("/health")
     async def health() -> JSONResponse:

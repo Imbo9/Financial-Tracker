@@ -17,9 +17,8 @@ from fintracker.settings import settings
 
 log = logging.getLogger(__name__)
 
-# Dual router: legacy keeps today's bare shapes for the live frontend; /v1 wraps
-# login in {"data": ...} and adds /me. Legacy router dies in Task 5.8.
-router = APIRouter(prefix="/auth", tags=["auth"])
+# Dashboard auth is served under /v1 (login wrapped in {"data": ...}, plus /me).
+# The legacy unversioned router was removed at cutover.
 router_v1 = APIRouter(prefix="/auth", tags=["auth"])
 
 _TOKEN_TTL_SECONDS = 86400
@@ -174,21 +173,10 @@ def _do_logout(response: Response, jwt: str | None) -> None:
     )
 
 
-@router.post("/login")
-def login(body: LoginRequest, response: Response) -> dict:
-    _do_login(body, response)
-    return {"ok": True}
-
-
 @router_v1.post("/login")
 def login_v1(body: LoginRequest, response: Response) -> dict:
     _do_login(body, response)
     return {"data": {"ok": True}}
-
-
-@router.post("/logout", status_code=204)
-def logout(response: Response, jwt: str | None = Cookie(default=None)) -> None:
-    _do_logout(response, jwt)
 
 
 @router_v1.post("/logout", status_code=204)
