@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { api } from '../../api/client';
-import type { Transaction } from '../../api/types';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation } from '@tanstack/react-query';
+import { transactionQueries } from '../../api/queries';
 import styles from './AddTransactionModal.module.css';
 
 type TxType = 'income' | 'expense';
@@ -11,63 +14,55 @@ const CATEGORIES = [
   'Connectivity', 'Entertainment', 'Career & Professional', 'Housing', 'Other',
 ];
 
+const schema = z.object({
+  booking_date: z.string().min(1, 'Data obbligatoria'),
+  amount: z.coerce.number().refine(v => v > 0, 'Importo maggiore di zero'),
+  merchant_name: z.string().min(1, 'Nome obbligatorio'),
+  category: z.string().optional(),
+  description: z.string().optional(),
+});
+type FormValues = z.infer<typeof schema>;
+
 interface Props {
   onClose: () => void;
-  onAdd: (tx: Transaction) => void;
+  onAdd: () => void;
 }
 
 export function AddTransactionModal({ onClose, onAdd }: Props) {
-  const [type, setType]           = useState<TxType>('expense');
-  const [amount, setAmount]       = useState('');
-  const [merchant, setMerchant]   = useState('');
-  const [category, setCategory]   = useState('');
-  const [note, setNote]           = useState('');
-  const [date, setDate]           = useState(new Date().toISOString().slice(0, 10));
-  const [submitting, setSubmitting] = useState(false);
+  const [type, setType] = useState<TxType>('expense');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!amount || isNaN(parseFloat(amount))) return;
-    const signed = type === 'income' ? Math.abs(parseFloat(amount)) : -Math.abs(parseFloat(amount));
+  const form = useForm<z.input<typeof schema>, unknown, FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      booking_date: new Date().toISOString().slice(0, 10),
+      merchant_name: '',
+      category: '',
+      description: '',
+    },
+  });
 
-    setSubmitting(true);
-    try {
-      const tx = await api.transactions.create({
-        booking_date: new Date(date).toISOString(),
-        amount: signed,
-        currency: 'EUR',
-        eur_amount: signed,
-        description: note || undefined,
-        merchant_name: merchant || undefined,
-        category: category || undefined,
-      });
-      onAdd(tx);
+  const mutation = useMutation({
+    ...transactionQueries.create(),
+    onSuccess: () => {
+      onAdd();
       onClose();
-    } catch {
-      // API unreachable — insert locally so UI stays responsive
-      const localTx: Transaction = {
-        id: Date.now(),
-        dedup_hash: `manual-${Date.now()}`,
-        booking_date: new Date(date).toISOString(),
-        amount: signed,
-        currency: 'EUR',
-        eur_amount: signed,
-        description: note || null,
-        merchant_name: merchant || null,
-        account_id: null,
-        is_internal: false,
-        category: category || null,
-        subcategory: null,
-        status: 'verified',
-        source: 'manual',
-        created_at: new Date().toISOString(),
-      };
-      onAdd(localTx);
-      onClose();
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const onSubmit = form.handleSubmit(values => {
+    const signed = type === 'income' ? Math.abs(values.amount) : -Math.abs(values.amount);
+    mutation.mutate({
+      booking_date: `${values.booking_date}T00:00:00Z`,
+      amount: signed,
+      eur_amount: signed,
+      currency: 'EUR',
+      merchant_name: values.merchant_name,
+      category: values.category || null,
+      description: values.description || null,
+    });
+  });
+
+  const { errors } = form.formState;
 
   return (
     <AnimatePresence>
@@ -91,6 +86,7 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
               {(['income', 'expense'] as TxType[]).map(t => (
                 <button
                   key={t}
+                  type="button"
                   className={`${styles.typeTab} ${type === t ? styles.typeTabActive : ''} ${styles[t]}`}
                   onClick={() => setType(t)}
                 >
@@ -98,12 +94,12 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
                 </button>
               ))}
             </div>
-            <button className={styles.closeBtn} onClick={onClose}>
+            <button type="button" className={styles.closeBtn} onClick={onClose}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
-          <form className={styles.form} onSubmit={handleSubmit}>
+          <form className={styles.form} onSubmit={onSubmit}>
             <div className={styles.amountRow}>
               <span className={styles.currencyLabel}>€</span>
               <input
@@ -112,26 +108,28 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
                 step="0.01"
                 min="0"
                 placeholder="0.00"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
                 autoFocus
+                {...form.register('amount')}
               />
             </div>
+            {errors.amount && <span className={styles.fieldError}>{errors.amount.message}</span>}
 
             <div className={styles.fields}>
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Merchant / Payee</span>
-                <input className={styles.input} value={merchant} onChange={e => setMerchant(e.target.value)} placeholder="e.g. Costa Coffee" />
+                <input className={styles.input} placeholder="e.g. Costa Coffee" {...form.register('merchant_name')} />
+                {errors.merchant_name && <span className={styles.fieldError}>{errors.merchant_name.message}</span>}
               </label>
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Date</span>
-                <input className={styles.input} type="date" value={date} onChange={e => setDate(e.target.value)} />
+                <input className={styles.input} type="date" {...form.register('booking_date')} />
+                {errors.booking_date && <span className={styles.fieldError}>{errors.booking_date.message}</span>}
               </label>
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Category</span>
-                <select className={styles.input} value={category} onChange={e => setCategory(e.target.value)}>
+                <select className={styles.input} {...form.register('category')}>
                   <option value="">Select category</option>
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -139,16 +137,18 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Note</span>
-                <input className={styles.input} value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note" />
+                <input className={styles.input} placeholder="Optional note" {...form.register('description')} />
               </label>
             </div>
 
+            {mutation.isError && <div className={styles.formError}>Impossibile salvare — riprova.</div>}
+
             <button
               type="submit"
-              disabled={submitting}
+              disabled={mutation.isPending}
               className={`${styles.submitBtn} ${type === 'income' ? styles.submitIncome : styles.submitExpense}`}
             >
-              {submitting ? 'Saving…' : `Add ${type.charAt(0).toUpperCase() + type.slice(1)}`}
+              {mutation.isPending ? 'Saving…' : `Add ${type.charAt(0).toUpperCase() + type.slice(1)}`}
             </button>
           </form>
         </motion.div>

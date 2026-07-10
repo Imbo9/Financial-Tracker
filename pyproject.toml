@@ -1,27 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "revolut-connector"
+name = "fintracker"
 version = "0.1.0"
-description = "Pipeline di finanza personale: Revolut → Postgres via Enable Banking API"
+description = "Personal finance hub: Revolut → Postgres via Enable Banking, AI categorization, dashboard"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.30.0",
-    "apscheduler>=3.10.0",
     "fastapi>=0.115.0",
     "httpx>=0.28.1",
-    "pgvector>=0.4.2",
-    "psycopg2-binary>=2.9.9",
     "pydantic>=2.0.0",
     "python-dotenv>=1.2.2",
     "pyjwt[cryptography]>=2.8.0",
     "cryptography>=48.0.0",
     "uvicorn[standard]>=0.32.0",
-    "passlib[bcrypt]>=1.7.4",
+    "pydantic-settings>=2.14.2",
+    "psycopg[binary,pool]>=3.3.4",
+    "alembic>=1.18.5",
+    "bcrypt>=5.0.0",
 ]
 
 [project.scripts]
-pipeline = "pipeline:main"
-auth     = "src.auth.enable_banking_auth:main"
+pipeline = "fintracker.pipeline:main"
+auth     = "fintracker.auth.enable_banking_auth:main"
 
 [dependency-groups]
 dev = [
@@ -30,11 +34,32 @@ dev = [
     "pytest-httpx>=0.35.0",
     "httpx>=0.28.1",
     "ruff>=0.8.0",
+    "pyrefly>=1.1.1",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fintracker"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear (bug reali: mutable default, loop var binding, ecc.)
+    "UP",  # pyupgrade (sintassi moderna 3.12)
+    "SIM", # simplify
+    "C4",  # comprehensions
+    "RUF", # regole ruff native
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fintracker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: requires a real Postgres (docker compose up db -d)"]
+addopts = "-m 'not integration'"

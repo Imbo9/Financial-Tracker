@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
-import { api } from '../../api/client';
-import type { CategoryStat, MonthlyStat } from '../../api/types';
+import { useQuery } from '@tanstack/react-query';
+import { statsQueries } from '../../api/queries';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
 import styles from './StatsPage.module.css';
 
@@ -18,7 +18,12 @@ function formatMonth(iso: string): string {
   return new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString('it-IT', { month: 'short' });
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number | string }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -39,13 +44,12 @@ const CustomTooltip = ({ active, payload }: any) => {
 export function StatsPage() {
   const [_tab, setTab] = useState<Tab>('expenses');
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
-  const [categoryData, setCategoryData] = useState<CategoryStat[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyStat[]>([]);
 
-  useEffect(() => {
-    api.stats.categories({ days_back: 30 }).then(setCategoryData).catch(() => {});
-    api.stats.monthly({ months: 12 }).then(setMonthlyData).catch(() => {});
-  }, []);
+  const categories = useQuery({ ...statsQueries.categories(30) });
+  const monthly = useQuery({ ...statsQueries.monthly(12) });
+  const categoryData = categories.data ?? [];
+  const monthlyData = monthly.data ?? [];
+  const isError = categories.isError || monthly.isError;
 
   const totalExpenses = categoryData.reduce((s, c) => s + c.total, 0);
 
@@ -67,6 +71,8 @@ export function StatsPage() {
       </header>
 
       <main className={styles.main}>
+        {isError && <div className={styles.stateMsg}>Impossibile caricare le statistiche — riprova.</div>}
+
         <motion.section
           className={styles.pieSection}
           initial={{ opacity: 0, y: 20 }}

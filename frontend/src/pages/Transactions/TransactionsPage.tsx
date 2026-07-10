@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { api } from '../../api/client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Transaction } from '../../api/types';
+import { transactionQueries } from '../../api/queries';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
 import { AddTransactionModal } from './AddTransactionModal';
 import styles from './TransactionsPage.module.css';
@@ -58,16 +59,12 @@ export function TransactionsPage() {
   const [view, setView] = useState<ViewMode>('daily');
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.transactions
-      .list({ days_back: 90, page_size: 500 })
-      .then(r => setTransactions(r.items))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const queryClient = useQueryClient();
+  const { data, isPending, isError } = useQuery({
+    ...transactionQueries.list({ days_back: 90, page_size: 500 }),
+  });
+  const transactions = useMemo(() => data?.items ?? [], [data]);
 
   const filtered = useMemo(() =>
     search
@@ -142,7 +139,8 @@ export function TransactionsPage() {
       </header>
 
       <main className={styles.main}>
-        {loading && <div className={styles.loadingMsg}>Loading…</div>}
+        {isPending && <div className={styles.loadingMsg}>Loading…</div>}
+        {isError && <div className={styles.loadingMsg}>Impossibile caricare le transazioni — riprova.</div>}
 
         {view === 'daily' && (
           <AnimatePresence>
@@ -199,7 +197,7 @@ export function TransactionsPage() {
         )}
       </main>
 
-      {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} onAdd={tx => setTransactions(prev => [tx, ...prev])} />}
+      {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} onAdd={() => queryClient.invalidateQueries({ queryKey: ['transactions'] })} />}
     </div>
   );
 }

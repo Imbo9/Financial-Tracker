@@ -59,7 +59,7 @@ services:
       - config/.env
     volumes:
       - ./config:/app/config       # scrive il token in config/.env
-    entrypoint: ["python", "src/auth/enable_banking_auth.py"]
+    entrypoint: ["python", "src/fintracker/auth/enable_banking_auth.py"]
 
 volumes:
   postgres_data:

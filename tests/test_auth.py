@@ -1,12 +1,9 @@
-import sys
-from pathlib import Path
+from datetime import UTC
 
 import pytest
 from fastapi.testclient import TestClient
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.server.routes import auth as auth_module
+from fintracker.server.routes import auth as auth_module
 
 _USERNAME = "testuser"
 _PASSWORD = "testpassword"
@@ -14,7 +11,7 @@ _PASSWORD = "testpassword"
 
 @pytest.fixture
 def client():
-    from src.server.app import create_app
+    from fintracker.server.app import create_app
 
     return TestClient(create_app())
 
@@ -65,7 +62,7 @@ class TestTokenClaims:
         client.post("/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
         payload = pyjwt.decode(
             client.cookies["jwt"],
-            auth_module.settings.JWT_SECRET,
+            auth_module.settings.JWT_SECRET.get_secret_value(),
             algorithms=["HS256"],
             audience=auth_module._AUDIENCE,
         )
@@ -74,11 +71,11 @@ class TestTokenClaims:
         assert "jti" in payload and "iat" in payload
 
     def test_verify_token_rejects_wrong_subject(self):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         import jwt as pyjwt
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         token = pyjwt.encode(
             {
                 "sub": "intruder",
@@ -88,7 +85,7 @@ class TestTokenClaims:
                 "exp": now + timedelta(hours=1),
                 "jti": "x",
             },
-            auth_module.settings.JWT_SECRET,
+            auth_module.settings.JWT_SECRET.get_secret_value(),
             algorithm="HS256",
         )
         with pytest.raises(pyjwt.InvalidTokenError):
@@ -146,3 +143,61 @@ class TestLoginRateLimit:
         assert r.status_code == 200
         r = client.post("/auth/login", json={"username": _USERNAME, "password": "wrong"})
         assert r.status_code == 401  # counter reset - not 429
+
+
+class TestLoginV1:
+    def test_success_returns_200_and_envelope(self, client):
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        assert r.status_code == 200
+        assert r.json() == {"data": {"ok": True}}
+        assert "jwt" in client.cookies
+
+    def test_wrong_password_returns_401_error_shape(self, client):
+        r = client.post("/v1/auth/login", json={"username": _USERNAME, "password": "wrong"})
+        assert r.status_code == 401
+        assert r.json() == {"error": {"code": 401, "message": "Invalid credentials"}}
+
+
+class TestLogoutV1:
+    def test_logout_v1_returns_204(self, client):
+        client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        r = client.post("/v1/auth/logout")
+        assert r.status_code == 204
+
+    def test_logout_v1_clears_cookie(self, client):
+        client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        assert "jwt" in client.cookies
+        client.post("/v1/auth/logout")
+        assert not client.cookies.get("jwt")
+
+
+class TestMe:
+    def test_me_without_cookie_returns_401(self, client):
+        r = client.get("/v1/auth/me")
+        assert r.status_code == 401
+        assert r.json() == {"error": {"code": 401, "message": "Unauthorized"}}
+
+    def test_me_with_garbage_token_returns_401(self, client):
+        client.cookies.set("jwt", "not.a.valid.jwt")
+        r = client.get("/v1/auth/me")
+        assert r.status_code == 401
+
+    def test_me_with_valid_cookie_returns_username(self, client):
+        client.post("/v1/auth/login", json={"username": _USERNAME, "password": _PASSWORD})
+        r = client.get("/v1/auth/me")
+        assert r.status_code == 200
+        assert r.json() == {"data": {"username": _USERNAME}}
+
+
+class TestErrorShapeGlobal:
+    def test_404_unknown_path_has_error_envelope(self, client):
+        r = client.get("/this/path/does/not/exist")
+        assert r.status_code == 404
+        body = r.json()
+        assert "error" in body
+        assert body["error"]["code"] == 404
+
+    def test_login_422_has_error_envelope_no_pydantic_details(self, client):
+        r = client.post("/auth/login", json={})
+        assert r.status_code == 422
+        assert r.json() == {"error": {"code": 422, "message": "Invalid request"}}

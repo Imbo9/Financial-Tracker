@@ -1,21 +1,22 @@
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.ingestion.tasker_parser import _parse_raw_text, parse_tasker_payload
-from src.models.tasker import TaskerPayload
+from fintracker.ingestion.tasker_parser import _parse_raw_text, parse_tasker_payload
+from fintracker.models.tasker import TaskerPayload
 
 
 def _payload(**kwargs) -> TaskerPayload:
-    defaults = {
+    # Explicit `Any` values: this dict deliberately mixes str/datetime and is later
+    # overridden with arbitrary per-test kwargs before being splatted into the pydantic
+    # model, so the values can't be narrowed to the model's Literal fields ahead of time.
+    defaults: dict[str, Any] = {
         "raw_text": "Hai pagato €12,50 a Esselunga",
         "amount": "12.50",
         "currency": "EUR",
         "merchant": "Esselunga",
         "direction": "debit",
-        "device_timestamp": datetime(2026, 6, 7, 14, 32, 0, tzinfo=timezone.utc),
+        "device_timestamp": datetime(2026, 6, 7, 14, 32, 0, tzinfo=UTC),
         "parse_status": "ok",
     }
     defaults.update(kwargs)
@@ -60,7 +61,7 @@ class TestParseTaskerPayload:
         assert tx.status == "pending"
 
     def test_booking_date_from_device_timestamp(self):
-        ts = datetime(2026, 6, 7, 14, 32, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 6, 7, 14, 32, 0, tzinfo=UTC)
         tx = parse_tasker_payload(_payload(device_timestamp=ts))
         assert tx.booking_date == ts
 
@@ -77,8 +78,9 @@ class TestParseRawText:
     def test_sent_you_credit(self):
         result = _parse_raw_text("Sent you EUR0.13. Tap to say thank you 💰")
         assert result is not None
-        amount, ccy, merchant, direction = result
-        assert amount == 0.13
+        amount, ccy, _merchant, direction = result
+        # amount is Decimal; 0.13 has no exact binary float repr, so compare via Decimal.
+        assert amount == Decimal("0.13")
         assert ccy == "EUR"
         assert direction == "credit"
 
@@ -101,7 +103,7 @@ class TestParseRawText:
         result = _parse_raw_text("You sent EUR0.01 to Mario Rossi")
         assert result is not None
         amount, ccy, merchant, direction = result
-        assert amount == -0.01
+        assert amount == Decimal("-0.01")
         assert ccy == "EUR"
         assert merchant == "Mario Rossi"
         assert direction == "debit"
@@ -119,7 +121,7 @@ class TestParseRawText:
             direction=None,
         )
         tx = parse_tasker_payload(p)
-        assert tx.amount == 0.13
+        assert tx.amount == Decimal("0.13")
         assert tx.currency == "EUR"
         assert tx.status == "pending"
 
@@ -144,4 +146,4 @@ class TestParseRawText:
     def test_it_locale_amount_parsing(self):
         result = _parse_raw_text("You paid EUR1.234,56 at Esselunga")
         assert result is not None
-        assert result[0] == -1234.56
+        assert result[0] == Decimal("-1234.56")

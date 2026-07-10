@@ -1,11 +1,7 @@
-import sys
-from pathlib import Path
-
 import pytest
+from pydantic import SecretStr
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-import config.settings as settings
+from fintracker.settings import settings
 
 
 class TestValidateServerSettings:
@@ -13,17 +9,17 @@ class TestValidateServerSettings:
         settings.validate_server_settings()
 
     def test_reports_missing_vars_by_name(self, monkeypatch):
-        monkeypatch.setattr(settings, "JWT_SECRET", "")
+        monkeypatch.setattr(settings, "JWT_SECRET", SecretStr(""))
         monkeypatch.setattr(settings, "APP_USERNAME", "")
         with pytest.raises(EnvironmentError, match="APP_USERNAME, JWT_SECRET"):
             settings.validate_server_settings()
 
     def test_rejects_short_webhook_secret(self, monkeypatch):
-        monkeypatch.setattr(settings, "WEBHOOK_SECRET", "short")
+        monkeypatch.setattr(settings, "WEBHOOK_SECRET", SecretStr("short"))
         with pytest.raises(EnvironmentError, match="WEBHOOK_SECRET"):
             settings.validate_server_settings()
 
     def test_rejects_short_jwt_secret(self, monkeypatch):
-        monkeypatch.setattr(settings, "JWT_SECRET", "short")
+        monkeypatch.setattr(settings, "JWT_SECRET", SecretStr("short"))
         with pytest.raises(EnvironmentError, match="JWT_SECRET"):
             settings.validate_server_settings()

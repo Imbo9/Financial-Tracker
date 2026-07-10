@@ -1,12 +1,9 @@
-import sys
-from pathlib import Path
+from datetime import UTC
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.normalizer.hash import eb_dedup_hash as _dedup_hash
-from src.normalizer.normalize import _is_internal, normalize
+from fintracker.normalizer.hash import eb_dedup_hash as _dedup_hash
+from fintracker.normalizer.normalize import _is_internal, normalize
 
 
 class TestDedupHash:
@@ -112,14 +109,14 @@ class TestNormalize:
         assert txs[0].amount == 25.50
 
     def test_basic(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         txs = normalize([self._tx()], "acc1", ecb_rates={})
         assert len(txs) == 1
         t = txs[0]
         assert t.currency == "EUR"
         assert t.eur_amount == -25.50
-        assert t.booking_date == datetime(2024, 1, 15, 0, 0, 0, tzinfo=timezone.utc)
+        assert t.booking_date == datetime(2024, 1, 15, 0, 0, 0, tzinfo=UTC)
         assert t.account_id == "acc1"
         assert not t.is_internal
         assert len(t.dedup_hash) == 64
@@ -141,7 +138,8 @@ class TestNormalize:
     def test_fx_conversion(self):
         raw = [self._tx(amount="108", currency="USD")]
         txs = normalize(raw, "acc1", ecb_rates={"USD": 1.08})
-        assert abs(txs[0].eur_amount - (-100.0)) < 0.01
+        # eur_amount is Decimal; compare via float since 108/1.08 isn't a terminating decimal.
+        assert abs(float(txs[0].eur_amount) - (-100.0)) < 0.01
 
     def test_internal_flagged(self):
         # Real Revolut top-up: remittance_information starts with the marker
@@ -179,12 +177,12 @@ class TestEcbCacheTtl:
         import time
         from unittest.mock import patch
 
-        import src.normalizer.normalize as mod
+        import fintracker.normalizer.normalize as mod
 
         self._reset(mod)
         mod._ecb_cache.update({"USD": 1.1})
         mod._ecb_fetched_at = time.monotonic()
-        with patch("src.normalizer.normalize.httpx.get") as mock_get:
+        with patch("fintracker.normalizer.normalize.httpx.get") as mock_get:
             rates = mod.fetch_ecb_rates()
         mock_get.assert_not_called()
         assert rates == {"USD": 1.1}
@@ -194,13 +192,13 @@ class TestEcbCacheTtl:
         import time
         from unittest.mock import patch
 
-        import src.normalizer.normalize as mod
+        import fintracker.normalizer.normalize as mod
 
         self._reset(mod)
         mod._ecb_cache.update({"USD": 1.1})
         mod._ecb_fetched_at = time.monotonic() - mod._ECB_TTL_SECONDS - 1
         with patch(
-            "src.normalizer.normalize.httpx.get", side_effect=Exception("net down")
+            "fintracker.normalizer.normalize.httpx.get", side_effect=Exception("net down")
         ) as mock_get:
             rates = mod.fetch_ecb_rates()
         mock_get.assert_called_once()

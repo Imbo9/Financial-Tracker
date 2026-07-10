@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
-import { api } from '../../api/client';
+import { accountQueries } from '../../api/queries';
 import type { AccountsResponse } from '../../api/types';
 import styles from './AccountsPage.module.css';
 
@@ -12,13 +12,10 @@ function accountIcon(balance: number) {
 }
 
 export function AccountsPage() {
-  const [data, setData] = useState<AccountsResponse>(DEFAULT_DATA);
+  const { data, isError } = useQuery({ ...accountQueries.list() });
+  const accounts = data ?? DEFAULT_DATA;
 
-  useEffect(() => {
-    api.accounts.list().then(setData).catch(() => {});
-  }, []);
-
-  const total = data.assets - data.liabilities;
+  const total = accounts.assets - accounts.liabilities;
 
   return (
     <div className={styles.page}>
@@ -27,6 +24,8 @@ export function AccountsPage() {
       </header>
 
       <main className={styles.main}>
+        {isError && <div className={styles.stateMsg}>Impossibile caricare i conti — riprova.</div>}
+
         <motion.section
           className={styles.hero}
           initial={{ opacity: 0, y: 20 }}
@@ -38,19 +37,19 @@ export function AccountsPage() {
           <div className={styles.heroSplit}>
             <div className={styles.heroItem}>
               <span className={styles.heroItemLabel}>Assets</span>
-              <AnimatedNumber value={data.assets} prefix="€ " decimals={0} className={styles.income} />
+              <AnimatedNumber value={accounts.assets} prefix="€ " decimals={0} className={styles.income} />
             </div>
             <div className={styles.heroItemDivider} />
             <div className={styles.heroItem}>
               <span className={styles.heroItemLabel}>Liabilities</span>
-              <AnimatedNumber value={data.liabilities} prefix="€ " decimals={0} className={styles.expense} />
+              <AnimatedNumber value={accounts.liabilities} prefix="€ " decimals={0} className={styles.expense} />
             </div>
           </div>
         </motion.section>
 
         <section className={styles.listSection}>
           <h2 className={styles.sectionTitle}>All Accounts</h2>
-          {data.accounts.map((acc, i) => (
+          {accounts.accounts.map((acc, i) => (
             <motion.div
               key={acc.account_id}
               className={styles.accountRow}

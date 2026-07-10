@@ -1,22 +1,15 @@
-import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { Sidebar }   from './Sidebar';
+import { useQuery } from '@tanstack/react-query';
+import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
-import { api } from '../api/client';
+import { authQueries } from '../api/queries';
 import styles from '../App.module.css';
 
 export function ProtectedRoute() {
-  const [status, setStatus] = useState<'checking' | 'ok' | 'unauth'>('checking');
+  const { isPending, isError } = useQuery({ ...authQueries.me() });
 
-  useEffect(() => {
-    api.transactions
-      .list({ page_size: 1 })
-      .then(() => setStatus('ok'))
-      .catch(() => setStatus('unauth'));
-  }, []);
-
-  if (status === 'checking') return null;
-  if (status === 'unauth')   return <Navigate to="/login" replace />;
+  if (isPending) return null;
+  if (isError) return <Navigate to="/login" replace />;
 
   return (
     <div className={styles.shell}>
