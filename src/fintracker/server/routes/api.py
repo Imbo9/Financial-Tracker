@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,9 +19,9 @@ router_v1 = APIRouter(dependencies=[Depends(require_jwt)])
 
 class ManualTransactionIn(BaseModel):
     booking_date: datetime
-    amount: float
+    amount: Decimal
     currency: str = "EUR"
-    eur_amount: float
+    eur_amount: Decimal
     merchant_name: str | None = None
     description: str | None = None
     account_id: str | None = None
