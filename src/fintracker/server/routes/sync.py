@@ -25,4 +25,4 @@ def trigger_sync(
         raise HTTPException(status_code=401, detail="Invalid webhook secret")
     background.add_task(run_eb_sync, days_back)
     log.info("Manual EB sync triggered via /sync (days_back=%d)", days_back)
-    return {"data": {"status": "started", "days_back": days_back}}
+    return {"status": "started", "days_back": days_back}

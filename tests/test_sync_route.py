@@ -27,20 +27,20 @@ class TestSyncRoute:
         with patch("fintracker.server.routes.sync.run_eb_sync") as mock_sync:
             resp = client.post("/sync", headers={"X-Webhook-Secret": _SECRET})
         assert resp.status_code == 200
-        assert resp.json() == {"data": {"status": "started", "days_back": 2}}
+        assert resp.json() == {"status": "started", "days_back": 2}
         # TestClient runs BackgroundTasks after the response is sent.
         mock_sync.assert_called_once_with(2)
 
     def test_days_back_default_is_2(self, client):
         with patch("fintracker.server.routes.sync.run_eb_sync") as mock_sync:
             resp = client.post("/sync", headers={"X-Webhook-Secret": _SECRET})
-        assert resp.json()["data"]["days_back"] == 2
+        assert resp.json()["days_back"] == 2
         mock_sync.assert_called_once_with(2)
 
     def test_days_back_custom_value(self, client):
         with patch("fintracker.server.routes.sync.run_eb_sync") as mock_sync:
             resp = client.post("/sync?days_back=7", headers={"X-Webhook-Secret": _SECRET})
-        assert resp.json()["data"]["days_back"] == 7
+        assert resp.json()["days_back"] == 7
         mock_sync.assert_called_once_with(7)
 
     def test_days_back_above_max_returns_422(self, client):
