@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -90,7 +91,9 @@ settings = Settings()
 
 
 def setup_logging() -> None:
+    # stdout, not the stderr default: Railway labels every stderr line as error-level
     logging.basicConfig(
+        stream=sys.stdout,
         level=getattr(logging, settings.LOG_LEVEL, logging.INFO),
         format="%(asctime)s  %(name)s  %(levelname)s  %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S",
