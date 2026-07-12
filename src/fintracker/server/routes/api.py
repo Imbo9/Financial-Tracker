@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from fintracker import taxonomy
 from fintracker.server.deps import require_jwt
 from fintracker.server.services import accounts, stats, transactions
 from fintracker.storage.db import db_conn
@@ -109,3 +110,8 @@ def stats_monthly_v1(months: MonthsQ = 12) -> dict:
 @router_v1.get("/accounts")
 def accounts_v1() -> dict:
     return {"data": _accounts()}
+
+
+@router_v1.get("/categories")
+def categories_v1() -> dict:
+    return {"data": {"expense": taxonomy.EXPENSE_CATEGORIES, "income": taxonomy.INCOME_CATEGORIES}}

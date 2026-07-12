@@ -376,3 +376,20 @@ class TestIsoSerializationGuard:
 
         assert isinstance(v1_date, str)
         assert datetime.fromisoformat(v1_date) == FAKE_ROW["booking_date"]
+
+
+class TestCategories:
+    def test_missing_auth_returns_401(self, client):
+        resp = client.get("/v1/categories")
+        assert resp.status_code == 401
+
+    def test_returns_full_taxonomy(self, auth_client):
+        resp = auth_client.get("/v1/categories")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert len(data["expense"]) == 20
+        assert len(data["income"]) == 8
+        assert data["expense"]["Car"][0] == "Fuel"
+        assert data["income"]["Other"] == []
+        # canonical order survives JSON round-trip
+        assert next(iter(data["expense"])) == "Groceries"
