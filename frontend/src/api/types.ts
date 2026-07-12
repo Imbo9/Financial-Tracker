@@ -56,3 +56,8 @@ export interface TransactionFilters {
   direction?: 'income' | 'expense';
   search?: string;
 }
+
+export interface Taxonomy {
+  expense: Record<string, string[]>;
+  income: Record<string, string[]>;
+}

@@ -37,3 +37,12 @@ export const accountQueries = {
     queryFn: api.accounts.list,
   }),
 };
+
+export const taxonomyQueries = {
+  categories: () => ({
+    queryKey: ['taxonomy'] as const,
+    queryFn: api.taxonomy.get,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  }),
+};

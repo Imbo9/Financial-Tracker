@@ -6,6 +6,7 @@ import type {
   MonthlyStat,
   TransactionFilters,
   AccountsResponse,
+  Taxonomy,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
@@ -49,6 +50,10 @@ export const api = {
       http.get('/v1/stats/categories', { params }).then(unwrap<CategoryStat[]>),
     monthly: (params: { months?: number } = {}): Promise<MonthlyStat[]> =>
       http.get('/v1/stats/monthly', { params }).then(unwrap<MonthlyStat[]>),
+  },
+  taxonomy: {
+    get: (): Promise<Taxonomy> =>
+      http.get('/v1/categories').then(unwrap<Taxonomy>),
   },
   accounts: {
     list: (): Promise<AccountsResponse> =>
