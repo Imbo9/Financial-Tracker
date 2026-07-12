@@ -36,6 +36,7 @@ export function AnimatedNumber({ value, decimals = 2, prefix = '', suffix = '', 
     return () => cancelAnimationFrame(frameRef.current);
   }, [value, duration]);
 
+  const sign = display < 0 ? '-' : '';
   const formatted = Math.abs(display).toLocaleString('it-IT', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -43,7 +44,7 @@ export function AnimatedNumber({ value, decimals = 2, prefix = '', suffix = '', 
 
   return (
     <span className={className}>
-      {prefix}{formatted}{suffix}
+      {sign}{prefix}{formatted}{suffix}
     </span>
   );
 }

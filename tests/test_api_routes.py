@@ -1,5 +1,6 @@
 import os
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import jwt as pyjwt
@@ -281,6 +282,70 @@ class TestAccounts:
         assert len(data["accounts"]) == 1
         assert data["accounts"][0]["account_id"] == "revolut-main"
         assert data["accounts"][0]["balance"] == 1234.56
+
+
+class TestMoneyJsonTypesGuard:
+    """psycopg returns numeric columns as Decimal; with `-> dict` route annotations
+    pydantic v2 serializes Decimal as a JSON *string*, which crashed the dashboard
+    (.toFixed on a string). Money must reach the client as JSON numbers, so the fake
+    rows here use Decimal exactly like the real driver does."""
+
+    def test_transaction_amounts_are_json_numbers(self, auth_client):
+        row = dict(FAKE_ROW, amount=Decimal("-4.27"), eur_amount=Decimal("-4.27"))
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([row], {"total": 1})),
+        ):
+            resp = auth_client.get("/v1/transactions")
+
+        item = resp.json()["data"]["items"][0]
+        assert isinstance(item["amount"], float)
+        assert isinstance(item["eur_amount"], float)
+
+    def test_created_transaction_amounts_are_json_numbers(self, auth_client):
+        returned_row = dict(FAKE_ROW, amount=Decimal("-12.50"), eur_amount=Decimal("-12.50"))
+        mock_cur = MagicMock()
+        mock_cur.fetchone.return_value = returned_row
+        mock_cur.__enter__ = lambda s: s
+        mock_cur.__exit__ = MagicMock(return_value=False)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+
+        body = {
+            "booking_date": "2026-06-08T12:00:00Z",
+            "amount": -12.50,
+            "currency": "EUR",
+            "eur_amount": -12.50,
+        }
+        with patch("fintracker.storage.db.get_pool", return_value=_mock_pool(mock_conn)):
+            resp = auth_client.post("/v1/transactions", json=body)
+
+        item = resp.json()["data"]
+        assert isinstance(item["amount"], float)
+        assert isinstance(item["eur_amount"], float)
+
+    def test_stats_category_total_is_json_number(self, auth_client):
+        row = {"category": "Eating Out", "total": Decimal("16.00"), "count": 2}
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([row])),
+        ):
+            resp = auth_client.get("/v1/stats/categories")
+
+        assert isinstance(resp.json()["data"][0]["total"], float)
+
+    def test_stats_monthly_amounts_are_json_numbers(self, auth_client):
+        row = {"month": "2026-06", "income": Decimal("2198.80"), "expenses": Decimal("114.25")}
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([row])),
+        ):
+            resp = auth_client.get("/v1/stats/monthly")
+
+        data = resp.json()["data"][0]
+        assert isinstance(data["income"], float)
+        assert isinstance(data["expenses"], float)
+        assert isinstance(data["net"], float)
 
 
 class TestIsoSerializationGuard:

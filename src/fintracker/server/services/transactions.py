@@ -22,6 +22,13 @@ _SELECT_COLS = """id, dedup_hash, booking_date, amount, currency, eur_amount,
                   category, subcategory, status, source, created_at"""
 
 
+def _money_to_float(row: dict) -> dict:
+    # numeric columns arrive as Decimal; uncast, pydantic v2 serializes them as JSON strings
+    row["amount"] = float(row["amount"])
+    row["eur_amount"] = float(row["eur_amount"])
+    return row
+
+
 def list_transactions(
     conn,
     *,
@@ -59,7 +66,7 @@ def list_transactions(
                 LIMIT %s OFFSET %s""",
             [*params, page_size, offset],
         )
-        rows = [dict(r) for r in cur.fetchall()]
+        rows = [_money_to_float(dict(r)) for r in cur.fetchall()]
 
     return {"items": rows, "total": total, "page": page, "page_size": page_size}
 
@@ -80,4 +87,4 @@ def create_manual(conn, data: dict) -> dict | None:
         cur.execute(_INSERT_RETURN, data)
         row = cur.fetchone()
     conn.commit()
-    return dict(row) if row else None
+    return _money_to_float(dict(row)) if row else None

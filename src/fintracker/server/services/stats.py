@@ -15,9 +15,12 @@ def by_category(conn, days_back: int) -> list[dict]:
             (days_back,),
         )
         rows = [dict(r) for r in cur.fetchall()]
-    grand_total = sum(float(r["total"]) for r in rows) or 1
+    # numeric columns arrive as Decimal; uncast, pydantic v2 serializes them as JSON strings
     for r in rows:
-        r["percentage"] = round(float(r["total"]) / grand_total * 100, 1)
+        r["total"] = float(r["total"])
+    grand_total = sum(r["total"] for r in rows) or 1
+    for r in rows:
+        r["percentage"] = round(r["total"] / grand_total * 100, 1)
     return rows
 
 
@@ -45,5 +48,7 @@ def monthly(conn, months: int) -> list[dict]:
         )
         rows = [dict(r) for r in cur.fetchall()]
     for r in rows:
-        r["net"] = round(float(r["income"]) - float(r["expenses"]), 2)
+        r["income"] = float(r["income"])
+        r["expenses"] = float(r["expenses"])
+        r["net"] = round(r["income"] - r["expenses"], 2)
     return rows
