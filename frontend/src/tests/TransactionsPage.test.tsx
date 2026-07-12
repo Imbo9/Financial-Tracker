@@ -20,6 +20,12 @@ vi.mock('../api/client', () => ({
     transactions: {
       list: vi.fn().mockResolvedValue({ items: [tx], total: 1, page: 1, page_size: 500 }),
     },
+    taxonomy: {
+      get: vi.fn().mockResolvedValue({
+        expense: { Car: ['Fuel'], Groceries: ['Supermarket'] },
+        income: { Salary: [] },
+      }),
+    },
   },
 }));
 
@@ -72,5 +78,14 @@ describe('TransactionsPage', () => {
     expect(screen.getByText('-€ 12,50')).toBeInTheDocument();
 
     vi.unstubAllGlobals();
+  });
+
+  it('colors the row icon by canonical taxonomy order', async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(screen.getByText('Esselunga')).toBeInTheDocument());
+    await waitFor(() => {
+      const icon = container.querySelector('[class*=txIcon]') as HTMLElement;
+      expect(icon.style.getPropertyValue('--cat-color')).toBe('var(--chart-2)');
+    });
   });
 });

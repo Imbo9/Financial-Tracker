@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Transaction } from '../../api/types';
-import { transactionQueries } from '../../api/queries';
+import { transactionQueries, taxonomyQueries } from '../../api/queries';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
 import { AddTransactionModal } from './AddTransactionModal';
 import styles from './TransactionsPage.module.css';
@@ -35,21 +35,6 @@ function groupByMonth(txs: Transaction[]): Record<string, Transaction[]> {
   }, {});
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'Income': 'var(--income)',
-  'Connectivity': 'var(--chart-7)',
-  'Career & Professional': 'var(--chart-3)',
-  'Eating Out': 'var(--chart-6)',
-  'Personal shopping': 'var(--chart-4)',
-  'Health': 'var(--chart-5)',
-  'Other': 'var(--text-muted)',
-};
-
-function categoryColor(cat: string | null): string {
-  if (!cat) return 'var(--text-muted)';
-  return CATEGORY_COLORS[cat] ?? 'var(--chart-1)';
-}
-
 function categoryInitial(cat: string | null): string {
   if (!cat) return '?';
   return cat[0].toUpperCase();
@@ -65,6 +50,16 @@ export function TransactionsPage() {
     ...transactionQueries.list({ days_back: 90, page_size: 500 }),
   });
   const transactions = useMemo(() => data?.items ?? [], [data]);
+
+  const { data: taxonomy } = useQuery({ ...taxonomyQueries.categories() });
+  const categoryOrder = useMemo(
+    () => [...Object.keys(taxonomy?.expense ?? {}), ...Object.keys(taxonomy?.income ?? {})],
+    [taxonomy],
+  );
+  const colorOf = (cat: string | null): string => {
+    const i = cat ? categoryOrder.indexOf(cat) : -1;
+    return i === -1 ? 'var(--text-muted)' : `var(--chart-${(i % 8) + 1})`;
+  };
 
   const filtered = useMemo(() =>
     search
@@ -161,7 +156,7 @@ export function TransactionsPage() {
                       €{Math.abs(txs.reduce((s, t) => s + t.eur_amount, 0)).toFixed(2)}
                     </span>
                   </div>
-                  {txs.map((tx, i) => <TxRow key={tx.id} tx={tx} index={i} />)}
+                  {txs.map((tx, i) => <TxRow key={tx.id} tx={tx} index={i} color={colorOf(tx.category)} />)}
                 </motion.section>
               ))}
           </AnimatePresence>
@@ -189,7 +184,7 @@ export function TransactionsPage() {
                         <span className={styles.expense}>-€{expenses.toFixed(2)}</span>
                       </div>
                     </div>
-                    {txs.map((tx, i) => <TxRow key={tx.id} tx={tx} index={i} />)}
+                    {txs.map((tx, i) => <TxRow key={tx.id} tx={tx} index={i} color={colorOf(tx.category)} />)}
                   </motion.section>
                 );
               })}
@@ -202,9 +197,8 @@ export function TransactionsPage() {
   );
 }
 
-function TxRow({ tx, index }: { tx: Transaction; index: number }) {
+function TxRow({ tx, index, color }: { tx: Transaction; index: number; color: string }) {
   const isIncome = tx.amount > 0;
-  const color = categoryColor(tx.category);
   const initial = categoryInitial(tx.category);
 
   return (
