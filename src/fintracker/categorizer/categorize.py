@@ -3,6 +3,7 @@ import logging
 
 import anthropic
 
+from fintracker import taxonomy
 from fintracker.settings import settings
 
 log = logging.getLogger(__name__)
@@ -10,29 +11,23 @@ log = logging.getLogger(__name__)
 MODEL = "claude-haiku-4-5-20251001"
 BATCH_SIZE = 50
 
-_SYSTEM_PROMPT = """You are a personal finance categorizer for Revolut transactions in Italy.
+_SYSTEM_PROMPT = f"""You are a personal finance categorizer for Revolut transactions in Italy.
 Given a JSON array of merchant names, assign each a category and optional subcategory.
 
-Valid categories and subcategories:
-- Food & Dining: Restaurants, Groceries, Cafes, Delivery, Bars
-- Transportation: Fuel, Public Transit, Taxi/Rideshare, Parking, Car Maintenance
-- Shopping: Clothing, Electronics, Online Retail, Home & Garden
-- Entertainment: Movies, Streaming, Games, Events, Sports
-- Health & Medical: Pharmacy, Doctor, Gym, Wellness
-- Utilities: Electricity, Water, Mobile, Internet, Insurance
-- Travel: Flights, Hotels, Car Rental, Vacation
-- Home: Rent, Repairs, Cleaning, Furniture
-- Education: Courses, Books, Software
-- Personal Care: Barber, Beauty, Cosmetics
-- Subscriptions: Software, Media, Memberships
-- Income: Salary, Freelance, Refund, Cashback
-- ATM/Cash: ATM Withdrawal, Cash Deposit
-- Transfers: Bank Transfer, P2P
-- Other
+Pick ONLY from these categories and subcategories:
+
+{taxonomy.prompt_block()}
+
+Rules:
+- The merchant name alone decides: pick the single best fit from either side.
+- Use null for subcategory when none fits the merchant.
+- If NO category fits (e.g. ATM withdrawals, unrecognizable person-to-person transfers),
+  use null for category too.
+- Recognizable person-to-person transfers go by purpose: Partner, Family, Gifts or
+  Social life when paying out; Reimbursements or Gifts received when money comes in.
 
 Respond ONLY with a JSON array in the same order as the input:
-[{"category": "...", "subcategory": "..."}, ...]
-Use null for subcategory when not applicable."""
+[{{"category": "...", "subcategory": "..."}}, ...]"""
 
 
 def _categorize_batch(client: anthropic.Anthropic, merchants: list[str]) -> list[dict]:
