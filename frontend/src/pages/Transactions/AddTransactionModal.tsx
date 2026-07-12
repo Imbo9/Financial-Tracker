@@ -3,22 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
-import { transactionQueries } from '../../api/queries';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { transactionQueries, taxonomyQueries } from '../../api/queries';
 import styles from './AddTransactionModal.module.css';
 
 type TxType = 'income' | 'expense';
-
-const CATEGORIES = [
-  'Eating Out', 'Groceries', 'Transport', 'Health', 'Personal shopping',
-  'Connectivity', 'Entertainment', 'Career & Professional', 'Housing', 'Other',
-];
 
 const schema = z.object({
   booking_date: z.string().min(1, 'Data obbligatoria'),
   amount: z.coerce.number().refine(v => v > 0, 'Importo maggiore di zero'),
   merchant_name: z.string().min(1, 'Nome obbligatorio'),
   category: z.string().optional(),
+  subcategory: z.string().optional(),
   description: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -37,9 +33,15 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
       booking_date: new Date().toISOString().slice(0, 10),
       merchant_name: '',
       category: '',
+      subcategory: '',
       description: '',
     },
   });
+
+  const { data: taxonomy } = useQuery({ ...taxonomyQueries.categories() });
+  const sideCategories = (type === 'income' ? taxonomy?.income : taxonomy?.expense) ?? {};
+  const selectedCategory = form.watch('category');
+  const subcategories = selectedCategory ? (sideCategories[selectedCategory] ?? []) : [];
 
   const mutation = useMutation({
     ...transactionQueries.create(),
@@ -58,6 +60,7 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
       currency: 'EUR',
       merchant_name: values.merchant_name,
       category: values.category || null,
+      subcategory: values.subcategory || null,
       description: values.description || null,
     });
   });
@@ -88,7 +91,11 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
                   key={t}
                   type="button"
                   className={`${styles.typeTab} ${type === t ? styles.typeTabActive : ''} ${styles[t]}`}
-                  onClick={() => setType(t)}
+                  onClick={() => {
+                    setType(t);
+                    form.setValue('category', '');
+                    form.setValue('subcategory', '');
+                  }}
                 >
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                 </button>
@@ -129,11 +136,30 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Category</span>
-                <select className={styles.input} {...form.register('category')}>
+                <select
+                  className={styles.input}
+                  {...form.register('category', {
+                    onChange: () => form.setValue('subcategory', ''),
+                  })}
+                >
                   <option value="">Select category</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {Object.keys(sideCategories).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
               </label>
+
+              {subcategories.length > 0 && (
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>Subcategory</span>
+                  <select className={styles.input} {...form.register('subcategory')}>
+                    <option value="">Select subcategory</option>
+                    {subcategories.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Note</span>
