@@ -43,7 +43,9 @@ export const api = {
       http.post('/v1/transactions', data).then(unwrap<Transaction>),
   },
   stats: {
-    categories: (params: { days_back?: number } = {}): Promise<CategoryStat[]> =>
+    categories: (
+      params: { days_back?: number; direction?: 'income' | 'expense' } = {},
+    ): Promise<CategoryStat[]> =>
       http.get('/v1/stats/categories', { params }).then(unwrap<CategoryStat[]>),
     monthly: (params: { months?: number } = {}): Promise<MonthlyStat[]> =>
       http.get('/v1/stats/monthly', { params }).then(unwrap<MonthlyStat[]>),

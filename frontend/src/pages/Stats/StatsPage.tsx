@@ -42,16 +42,18 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 };
 
 export function StatsPage() {
-  const [_tab, setTab] = useState<Tab>('expenses');
+  const [tab, setTab] = useState<Tab>('expenses');
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
-  const categories = useQuery({ ...statsQueries.categories(30) });
+  const categories = useQuery({
+    ...statsQueries.categories(30, tab === 'income' ? 'income' : 'expense'),
+  });
   const monthly = useQuery({ ...statsQueries.monthly(12) });
   const categoryData = categories.data ?? [];
   const monthlyData = monthly.data ?? [];
   const isError = categories.isError || monthly.isError;
 
-  const totalExpenses = categoryData.reduce((s, c) => s + c.total, 0);
+  const total = categoryData.reduce((s, c) => s + c.total, 0);
 
   return (
     <div className={styles.page}>
@@ -61,7 +63,7 @@ export function StatsPage() {
           {(['expenses', 'income'] as Tab[]).map(t => (
             <button
               key={t}
-              className={`${styles.tab} ${_tab === t ? styles.tabActive : ''} ${t === 'income' ? styles.tabIncome : styles.tabExpense}`}
+              className={`${styles.tab} ${tab === t ? styles.tabActive : ''} ${t === 'income' ? styles.tabIncome : styles.tabExpense}`}
               onClick={() => setTab(t)}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -112,7 +114,7 @@ export function StatsPage() {
 
             <div className={styles.pieCenter}>
               <span className={styles.pieCenterLabel}>Total</span>
-              <AnimatedNumber value={totalExpenses} prefix="€ " decimals={0} className={styles.pieCenterValue} />
+              <AnimatedNumber value={total} prefix="€ " decimals={0} className={styles.pieCenterValue} />
             </div>
           </div>
 

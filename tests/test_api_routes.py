@@ -242,6 +242,18 @@ class TestStats:
         assert data[0]["count"] == 2
         assert data[0]["percentage"] == 100.0
 
+    def test_categories_direction_income_returns_200(self, auth_client):
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_CATEGORY_ROW])),
+        ):
+            resp = auth_client.get("/v1/stats/categories?direction=income")
+        assert resp.status_code == 200
+
+    def test_categories_direction_invalid_returns_422(self, auth_client):
+        resp = auth_client.get("/v1/stats/categories?direction=all")
+        assert resp.status_code == 422
+
     def test_monthly_missing_auth_returns_401(self, client):
         resp = client.get("/v1/stats/monthly")
         assert resp.status_code == 401

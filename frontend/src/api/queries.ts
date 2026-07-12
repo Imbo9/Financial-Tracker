@@ -21,9 +21,9 @@ export const transactionQueries = {
 };
 
 export const statsQueries = {
-  categories: (days_back = 30) => ({
-    queryKey: ['stats', 'categories', days_back] as const,
-    queryFn: () => api.stats.categories({ days_back }),
+  categories: (days_back = 30, direction: 'income' | 'expense' = 'expense') => ({
+    queryKey: ['stats', 'categories', days_back, direction] as const,
+    queryFn: () => api.stats.categories({ days_back, direction }),
   }),
   monthly: (months = 12) => ({
     queryKey: ['stats', 'monthly', months] as const,

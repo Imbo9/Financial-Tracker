@@ -57,9 +57,9 @@ def _create_transaction(body: ManualTransactionIn) -> dict:
     return row
 
 
-def _stats_categories(days_back: int) -> list[dict]:
+def _stats_categories(days_back: int, direction: str) -> list[dict]:
     with db_conn() as conn:
-        return stats.by_category(conn, days_back)
+        return stats.by_category(conn, days_back, direction)
 
 
 def _stats_monthly(months: int) -> list[dict]:
@@ -97,8 +97,8 @@ def create_transaction_v1(body: ManualTransactionIn) -> dict:
 
 
 @router_v1.get("/stats/categories")
-def stats_categories_v1(days_back: DaysBackQ = 30) -> dict:
-    return {"data": _stats_categories(days_back)}
+def stats_categories_v1(days_back: DaysBackQ = 30, direction: DirectionQ = None) -> dict:
+    return {"data": _stats_categories(days_back, direction or "expense")}
 
 
 @router_v1.get("/stats/monthly")
