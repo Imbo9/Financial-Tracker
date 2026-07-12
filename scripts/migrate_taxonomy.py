@@ -6,7 +6,8 @@ Run against prod with Railway env:
 Then re-categorize:
   railway run --service just-comfort -- uv run python pipeline.py --skip-fetch
 
-Idempotent: every statement matches only rows still carrying legacy labels.
+Run exactly once, BEFORE the re-categorization pipeline: the non-manual reset is
+unconditional, so re-running after `pipeline.py --skip-fetch` would wipe the fresh labels.
 """
 
 import logging
@@ -16,7 +17,8 @@ from fintracker.storage.db import direct_connection
 
 log = logging.getLogger(__name__)
 
-# Legacy AddTransactionModal names → new taxonomy (None = leave uncategorized).
+# Legacy AddTransactionModal names → new taxonomy (None = reset to NULL; the next
+# categorization pass will label them).
 MANUAL_REMAP: dict[str, str | None] = {
     "Transport": "Transit",
     "Career & Professional": "Career & Professional development",

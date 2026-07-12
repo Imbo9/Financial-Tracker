@@ -58,6 +58,38 @@ def _categorize_batch(client: anthropic.Anthropic, merchants: list[str]) -> list
         return [{"category": None, "subcategory": None}] * len(merchants)
 
 
+def _sanitize_label(
+    category: str | None, subcategory: str | None, row_id: int
+) -> tuple[str | None, str | None]:
+    """Validate Claude's (category, subcategory) against the taxonomy before persisting.
+
+    A near-miss label (dropped accent, "and" for "&", case drift) would otherwise become
+    a permanent phantom category — once category IS NOT NULL the row is never re-selected
+    for re-categorization.
+    """
+    if category is None:
+        if subcategory is not None:
+            log.warning(
+                "Row %d: subcategory %r with no category — dropping both", row_id, subcategory
+            )
+        return None, None
+
+    if taxonomy.is_valid(category, subcategory):
+        return category, subcategory
+
+    if taxonomy.is_valid(category):
+        log.warning(
+            "Row %d: unknown subcategory %r for category %r — dropping subcategory",
+            row_id,
+            subcategory,
+            category,
+        )
+        return category, None
+
+    log.warning("Row %d: unknown category %r — dropping category and subcategory", row_id, category)
+    return None, None
+
+
 def categorize_uncategorized(conn) -> int:
     """Fetch uncategorized real transactions, call Claude, update DB. Returns count updated."""
     if not settings.ANTHROPIC_API_KEY.get_secret_value():
@@ -96,7 +128,7 @@ def categorize_uncategorized(conn) -> int:
                 len(ids),
             )
         update_data = [
-            (r.get("category"), r.get("subcategory"), row_id)
+            (*_sanitize_label(r.get("category"), r.get("subcategory"), row_id), row_id)
             for row_id, r in zip(ids, results, strict=False)
             if isinstance(r, dict)
         ]
