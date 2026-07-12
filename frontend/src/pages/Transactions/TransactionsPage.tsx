@@ -107,7 +107,7 @@ export function TransactionsPage() {
           <div className={styles.summaryItem}>
             <span className={styles.summaryLabel}>Net</span>
             <AnimatedNumber
-              value={totalIncome - totalExpenses}
+              value={Math.abs(totalIncome - totalExpenses)}
               prefix={totalIncome - totalExpenses >= 0 ? '+€ ' : '-€ '}
               className={`${styles.summaryValue} ${totalIncome >= totalExpenses ? styles.income : styles.expense}`}
             />

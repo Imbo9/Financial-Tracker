@@ -91,6 +91,9 @@ export function StatsPage() {
                   innerRadius={70}
                   outerRadius={110}
                   paddingAngle={3}
+                  // rAF-driven sector tween never fires in background tabs (Chrome
+                  // freezes rAF for hidden documents), leaving the donut empty.
+                  isAnimationActive={false}
                   onMouseEnter={(_, idx) => setActiveIdx(idx)}
                   onMouseLeave={() => setActiveIdx(null)}
                 >
