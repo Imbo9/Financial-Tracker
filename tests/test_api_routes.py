@@ -214,6 +214,47 @@ class TestCreateTransaction:
             resp = auth_client.post("/v1/transactions", json=body)
         assert resp.status_code == 409
 
+    def _valid_body(self, **overrides):
+        body = {
+            "booking_date": "2026-06-08T12:00:00Z",
+            "amount": -12.50,
+            "currency": "EUR",
+            "eur_amount": -12.50,
+            "merchant_name": "Esso",
+        }
+        body.update(overrides)
+        return body
+
+    def test_unknown_category_returns_422(self, auth_client):
+        resp = auth_client.post("/v1/transactions", json=self._valid_body(category="Food & Dining"))
+        assert resp.status_code == 422
+
+    def test_foreign_subcategory_returns_422(self, auth_client):
+        resp = auth_client.post(
+            "/v1/transactions",
+            json=self._valid_body(category="Car", subcategory="Supermarket"),
+        )
+        assert resp.status_code == 422
+
+    def test_subcategory_without_category_returns_422(self, auth_client):
+        resp = auth_client.post("/v1/transactions", json=self._valid_body(subcategory="Fuel"))
+        assert resp.status_code == 422
+
+    def test_valid_category_subcategory_pair_returns_201(self, auth_client):
+        returned_row = dict(FAKE_ROW, category="Car", subcategory="Fuel")
+        mock_cur = MagicMock()
+        mock_cur.fetchone.return_value = returned_row
+        mock_cur.__enter__ = lambda s: s
+        mock_cur.__exit__ = MagicMock(return_value=False)
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value = mock_cur
+        with patch("fintracker.storage.db.get_pool", return_value=_mock_pool(mock_conn)):
+            resp = auth_client.post(
+                "/v1/transactions",
+                json=self._valid_body(category="Car", subcategory="Fuel"),
+            )
+        assert resp.status_code == 201
+
 
 FAKE_CATEGORY_ROW = {"category": "Eating Out", "total": 16.00, "count": 2}
 FAKE_MONTHLY_ROW = {

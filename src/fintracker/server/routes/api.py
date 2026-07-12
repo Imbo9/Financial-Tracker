@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from fintracker import taxonomy
 from fintracker.server.deps import require_jwt
@@ -28,6 +28,14 @@ class ManualTransactionIn(BaseModel):
     account_id: str | None = None
     category: str | None = None
     subcategory: str | None = None
+
+    @model_validator(mode="after")
+    def _check_taxonomy(self) -> "ManualTransactionIn":
+        if self.subcategory is not None and self.category is None:
+            raise ValueError("subcategory requires a category")
+        if self.category is not None and not taxonomy.is_valid(self.category, self.subcategory):
+            raise ValueError("unknown category or subcategory")
+        return self
 
 
 def _list_transactions(
