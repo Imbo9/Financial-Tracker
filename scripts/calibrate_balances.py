@@ -44,7 +44,7 @@ def calibrate(conn, client: httpx.Client, account_uids: list[str]) -> dict[str, 
             )
         conn.commit()
         results[uid] = {"eb_balance": eb_balance, "delta_sum": delta_sum, "opening": opening}
-        log.info("%s: eb=%s deltas=%s opening=%s", uid, eb_balance, delta_sum, opening)
+        log.info("%s: eb=%s deltas=%s opening=%s", uid[:8], eb_balance, delta_sum, opening)
     return results
 
 
