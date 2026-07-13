@@ -33,6 +33,12 @@ export interface MonthlyStat {
 export interface AccountBalance {
   account_id: string;
   balance: number;
+  display_name: string | null;
+}
+
+export interface BalancePoint {
+  month: string;
+  balance: number;
 }
 
 export interface AccountsResponse {

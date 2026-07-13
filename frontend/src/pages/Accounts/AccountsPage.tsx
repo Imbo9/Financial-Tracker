@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
-import { accountQueries } from '../../api/queries';
+import { accountQueries, statsQueries } from '../../api/queries';
 import type { AccountsResponse } from '../../api/types';
 import styles from './AccountsPage.module.css';
 
@@ -11,9 +12,43 @@ function accountIcon(balance: number) {
   return balance >= 0 ? '◇' : '◈';
 }
 
+function formatMonth(iso: string): string {
+  const [y, m] = iso.split('-');
+  return new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString('it-IT', { month: 'short' });
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number | string }>;
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: 8,
+        padding: '8px 12px',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 12,
+        color: 'var(--text-primary)',
+      }}
+    >
+      <div>{formatMonth(label ?? '')}</div>
+      <div style={{ color: 'var(--accent)', fontWeight: 600 }}>€{Number(payload[0]?.value).toLocaleString('it-IT')}</div>
+    </div>
+  );
+};
+
 export function AccountsPage() {
   const { data, isError } = useQuery({ ...accountQueries.list() });
   const accounts = data ?? DEFAULT_DATA;
+
+  const history = useQuery({ ...statsQueries.balanceHistory(12) });
+  const historyData = history.data ?? [];
 
   const total = accounts.assets - accounts.liabilities;
 
@@ -48,6 +83,39 @@ export function AccountsPage() {
         </motion.section>
 
         <section className={styles.listSection}>
+          <h2 className={styles.sectionTitle}>Balance</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            {/* isAnimationActive: background-tab rAF freeze, same as StatsPage charts */}
+            <LineChart data={historyData}>
+              <CartesianGrid vertical={false} stroke="var(--border)" />
+              <XAxis
+                dataKey="month"
+                tickFormatter={formatMonth}
+                tick={{ fontFamily: 'var(--font-mono)', fontSize: 10, fill: 'var(--text-muted)' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontFamily: 'var(--font-mono)', fontSize: 10, fill: 'var(--text-muted)' }}
+                tickFormatter={v => `€${Math.round(v / 1000)}k`}
+                axisLine={false}
+                tickLine={false}
+                domain={['auto', 'auto']}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="balance"
+                stroke="var(--accent)"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </section>
+
+        <section className={styles.listSection}>
           <h2 className={styles.sectionTitle}>All Accounts</h2>
           {accounts.accounts.map((acc, i) => (
             <motion.div
@@ -59,7 +127,7 @@ export function AccountsPage() {
             >
               <div className={styles.accountIcon}>{accountIcon(acc.balance)}</div>
               <div className={styles.accountInfo}>
-                <span className={styles.accountName}>{acc.account_id}</span>
+                <span className={styles.accountName}>{acc.display_name ?? acc.account_id}</span>
               </div>
               <AnimatedNumber
                 value={acc.balance}

@@ -29,6 +29,10 @@ export const statsQueries = {
     queryKey: ['stats', 'monthly', months] as const,
     queryFn: () => api.stats.monthly({ months }),
   }),
+  balanceHistory: (months = 12) => ({
+    queryKey: ['stats', 'balance-history', months] as const,
+    queryFn: () => api.stats.balanceHistory({ months }),
+  }),
 };
 
 export const accountQueries = {
