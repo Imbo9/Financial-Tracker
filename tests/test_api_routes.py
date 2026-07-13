@@ -434,3 +434,25 @@ class TestCategories:
         assert data["income"]["Other"] == []
         # canonical order survives JSON round-trip
         assert next(iter(data["expense"])) == "Groceries"
+
+
+class TestBalanceHistory:
+    def test_missing_auth_returns_401(self, client):
+        resp = client.get("/v1/stats/balance-history")
+        assert resp.status_code == 401
+
+    def test_returns_monthly_float_series(self, auth_client):
+        row = {"month": "2026-06", "net": Decimal("-50.00")}
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([row], {"total": Decimal("100.00")})),
+        ):
+            resp = auth_client.get("/v1/stats/balance-history?months=2")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data[-1]["month"].count("-") == 1
+        assert all(isinstance(p["balance"], float) for p in data)
+
+    def test_months_above_24_returns_422(self, auth_client):
+        resp = auth_client.get("/v1/stats/balance-history?months=25")
+        assert resp.status_code == 422

@@ -76,6 +76,11 @@ def _stats_monthly(months: int) -> list[dict]:
         return stats.monthly(conn, months)
 
 
+def _stats_balance_history(months: int) -> list[dict]:
+    with db_conn() as conn:
+        return stats.balance_history(conn, months)
+
+
 def _accounts() -> dict:
     with db_conn() as conn:
         return accounts.balances(conn)
@@ -113,6 +118,11 @@ def stats_categories_v1(days_back: DaysBackQ = 30, direction: DirectionQ = None)
 @router_v1.get("/stats/monthly")
 def stats_monthly_v1(months: MonthsQ = 12) -> dict:
     return {"data": _stats_monthly(months)}
+
+
+@router_v1.get("/stats/balance-history")
+def stats_balance_history_v1(months: MonthsQ = 12) -> dict:
+    return {"data": _stats_balance_history(months)}
 
 
 @router_v1.get("/accounts")
