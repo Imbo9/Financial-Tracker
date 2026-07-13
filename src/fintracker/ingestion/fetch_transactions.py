@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any
 
 import httpx
@@ -57,6 +58,23 @@ def _get(client: httpx.Client, path: str, **params) -> Any:
     resp = client.get(f"{BASE_URL}{path}", headers=_headers(), params=params or None)
     resp.raise_for_status()
     return resp.json()
+
+
+def fetch_balances(client: httpx.Client, account_uid: str) -> Decimal:
+    """Current balance for one account; prefers closing-booked (CLBD) per Berlin Group."""
+    data = _get(client, f"/accounts/{account_uid}/balances")
+    balances = data.get("balances") or []
+    if not balances:
+        raise ValueError(f"No balances returned for account {account_uid}")
+    chosen = next((b for b in balances if b.get("balance_type") == "CLBD"), balances[0])
+    amount = chosen["balance_amount"]
+    if amount.get("currency") != "EUR":
+        log.warning(
+            "Account %s balance is in %s — treating as EUR per app convention",
+            account_uid,
+            amount.get("currency"),
+        )
+    return Decimal(amount["amount"])
 
 
 def fetch_accounts() -> list[str]:
