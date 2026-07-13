@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from psycopg.rows import dict_row
 
 
@@ -54,3 +56,43 @@ def monthly(conn, months: int) -> list[dict]:
         r["expenses"] = float(r["expenses"])
         r["net"] = round(r["income"] - r["expenses"], 2)
     return rows
+
+
+def balance_history(conn, months: int = 12) -> list[dict]:
+    """Monthly cumulative total balance: openings + running sum of EB-account deltas.
+
+    Internal rows count (they move real money); manual rows (account_id IS NULL) don't,
+    mirroring the accounts page scope.
+    """
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute("SELECT COALESCE(SUM(opening_balance), 0) AS total FROM accounts")
+        openings = float(cur.fetchone()["total"])
+        cur.execute(
+            """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
+                      SUM(eur_amount) AS net
+               FROM transactions
+               WHERE account_id IS NOT NULL
+               GROUP BY 1
+               ORDER BY 1"""
+        )
+        rows = cur.fetchall()
+
+    nets = {r["month"]: float(r["net"]) for r in rows}
+    current = date.today().replace(day=1)
+    start = current
+    for _ in range(months - 1):
+        start = (start - timedelta(days=1)).replace(day=1)
+    if rows:
+        first_year, first_month = map(int, rows[0]["month"].split("-"))
+        start = min(start, date(first_year, first_month, 1))
+
+    series: list[dict] = []
+    running = openings
+    cursor_month = start
+    while cursor_month <= current:
+        key = cursor_month.strftime("%Y-%m")
+        running = round(running + nets.get(key, 0.0), 2)
+        series.append({"month": key, "balance": running})
+        next_month = cursor_month.month % 12 + 1
+        cursor_month = date(cursor_month.year + (cursor_month.month == 12), next_month, 1)
+    return series[-months:]
