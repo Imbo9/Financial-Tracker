@@ -84,6 +84,9 @@ export function AccountsPage() {
 
         <section className={styles.listSection}>
           <h2 className={styles.sectionTitle}>Balance</h2>
+          {history.isError && (
+            <div className={styles.stateMsg}>Impossibile caricare lo storico saldo — riprova.</div>
+          )}
           <ResponsiveContainer width="100%" height={200}>
             {/* isAnimationActive: background-tab rAF freeze, same as StatsPage charts */}
             <LineChart data={historyData}>
