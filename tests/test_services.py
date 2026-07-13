@@ -64,13 +64,24 @@ def test_stats_by_category_adds_percentage():
 def test_accounts_balances_splits_assets_liabilities():
     conn = _conn_returning(
         [
-            {"account_id": "a", "balance": 100.0},
-            {"account_id": "b", "balance": -40.0},
+            {"account_id": "a", "balance": 100.0, "display_name": "Main"},
+            {"account_id": "b", "balance": -40.0, "display_name": None},
         ]
     )
     out = accounts.balances(conn)
     assert out["assets"] == 100.0
     assert out["liabilities"] == 40.0
+    assert out["accounts"][0]["display_name"] == "Main"
+
+
+def test_accounts_balances_joins_openings():
+    conn, cur = _conn_with_cursor([])
+    accounts.balances(conn)
+    sql = cur.execute.call_args[0][0]
+    assert "LEFT JOIN accounts" in sql
+    assert "opening_balance" in sql
+    assert "real_transactions" not in sql
+    assert "FROM transactions" in sql
 
 
 def test_balance_history_accumulates_on_openings_with_carry_forward():
