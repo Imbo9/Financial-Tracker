@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-import scripts.migrate_taxonomy as mig  # pyrefly: ignore
+import scripts.migrate_taxonomy as mig  # pyrefly: ignore[missing-import]
 
 
 def _conn():

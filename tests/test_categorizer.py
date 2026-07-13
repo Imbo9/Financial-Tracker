@@ -61,13 +61,12 @@ def test_categorize_uncategorized_sanitizes_claude_output_against_taxonomy(monke
 
     updated = categorize_uncategorized(conn)
 
-    assert updated == 5
+    # Rows sanitized to (None, None) are already NULL in the DB: writing them would be
+    # a no-op UPDATE and inflate the "categorized" count — they must be skipped entirely.
+    assert updated == 2
     assert cur.executemany.call_args[0][1] == [
         ("Car", "Fuel", 1),
         ("Car", None, 2),
-        (None, None, 3),
-        (None, None, 4),
-        (None, None, 5),
     ]
 
 

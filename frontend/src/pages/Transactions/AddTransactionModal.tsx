@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -40,7 +40,8 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
 
   const { data: taxonomy } = useQuery({ ...taxonomyQueries.categories() });
   const sideCategories = (type === 'income' ? taxonomy?.income : taxonomy?.expense) ?? {};
-  const selectedCategory = form.watch('category');
+  // useWatch instead of form.watch: the latter is flagged unmemoizable by the React Compiler
+  const selectedCategory = useWatch({ control: form.control, name: 'category' });
   const subcategories = selectedCategory ? (sideCategories[selectedCategory] ?? []) : [];
 
   const mutation = useMutation({

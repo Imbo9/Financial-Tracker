@@ -163,8 +163,9 @@ export function StatsPage() {
                 tickFormatter={v => `€${(v/1000).toFixed(0)}k`}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="income"   name="Income"   fill="var(--income)"  radius={[4,4,0,0]} />
-              <Bar dataKey="expenses" name="Expenses" fill="var(--expense)" radius={[4,4,0,0]} />
+              {/* isAnimationActive: same background-tab rAF freeze as the Pie above */}
+              <Bar dataKey="income"   name="Income"   fill="var(--income)"  radius={[4,4,0,0]} isAnimationActive={false} />
+              <Bar dataKey="expenses" name="Expenses" fill="var(--expense)" radius={[4,4,0,0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </motion.section>

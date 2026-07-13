@@ -91,7 +91,11 @@ def _sanitize_label(
 
 
 def categorize_uncategorized(conn) -> int:
-    """Fetch uncategorized real transactions, call Claude, update DB. Returns count updated."""
+    """Fetch uncategorized real transactions, call Claude, update DB.
+
+    Returns the number of rows that actually received a label; rows Claude leaves
+    (or sanitization resets) to None are skipped — they are already NULL in the DB.
+    """
     if not settings.ANTHROPIC_API_KEY.get_secret_value():
         raise OSError("ANTHROPIC_API_KEY not set in config/.env")
 
@@ -127,11 +131,13 @@ def categorize_uncategorized(conn) -> int:
                 len(results),
                 len(ids),
             )
-        update_data = [
-            (*_sanitize_label(r.get("category"), r.get("subcategory"), row_id), row_id)
-            for row_id, r in zip(ids, results, strict=False)
-            if isinstance(r, dict)
-        ]
+        update_data = []
+        for row_id, r in zip(ids, results, strict=False):
+            if not isinstance(r, dict):
+                continue
+            cat, sub = _sanitize_label(r.get("category"), r.get("subcategory"), row_id)
+            if cat is not None:
+                update_data.append((cat, sub, row_id))
         if update_data:
             with conn.cursor() as cur:
                 cur.executemany(
