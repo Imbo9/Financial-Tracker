@@ -71,7 +71,7 @@ def fetch_balances(client: httpx.Client, account_uid: str) -> Decimal:
     if amount.get("currency") != "EUR":
         log.warning(
             "Account %s balance is in %s — treating as EUR per app convention",
-            account_uid,
+            account_uid[:8],
             amount.get("currency"),
         )
     return Decimal(amount["amount"])
