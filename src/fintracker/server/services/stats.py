@@ -62,7 +62,9 @@ def balance_history(conn, months: int = 12) -> list[dict]:
     """Monthly cumulative total balance: openings + running sum of EB-account deltas.
 
     Internal rows count (they move real money); manual rows (account_id IS NULL) don't,
-    mirroring the accounts page scope.
+    mirroring the accounts page scope. Only calibrated accounts (those in the accounts
+    table) are summed — same INNER-JOIN scope as accounts.balances, so the last point
+    reconciles with net worth and stale post-renewal account_ids are excluded.
     """
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT COALESCE(SUM(opening_balance), 0) AS total FROM accounts")
@@ -71,7 +73,7 @@ def balance_history(conn, months: int = 12) -> list[dict]:
             """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
                       SUM(eur_amount) AS net
                FROM transactions
-               WHERE account_id IS NOT NULL
+               WHERE account_id IN (SELECT account_uid FROM accounts)
                GROUP BY 1
                ORDER BY 1"""
         )

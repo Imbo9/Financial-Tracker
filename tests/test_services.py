@@ -74,14 +74,34 @@ def test_accounts_balances_splits_assets_liabilities():
     assert out["accounts"][0]["display_name"] == "Main"
 
 
-def test_accounts_balances_joins_openings():
+def test_accounts_balances_inner_joins_openings_only():
     conn, cur = _conn_with_cursor([])
     accounts.balances(conn)
     sql = cur.execute.call_args[0][0]
-    assert "LEFT JOIN accounts" in sql
+    # INNER JOIN (not LEFT): only calibrated accounts show, so stale post-renewal
+    # account_ids without an openings row are excluded.
+    assert "JOIN accounts" in sql
+    assert "LEFT JOIN" not in sql
     assert "opening_balance" in sql
     assert "real_transactions" not in sql
     assert "FROM transactions" in sql
+
+
+def test_balance_history_scopes_to_calibrated_accounts():
+    conn = MagicMock()
+    cur = MagicMock()
+    cur.fetchone.return_value = {"total": 0}
+    cur.fetchall.return_value = []
+    conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
+    conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    stats.balance_history(conn, months=3)
+
+    monthly_sql = cur.execute.call_args_list[1].args[0]
+    # Restrict to accounts we have an opening for; a bare `IS NOT NULL` would re-admit
+    # stale post-renewal account_ids and desync the series from net worth.
+    assert "account_uid FROM accounts" in monthly_sql
+    assert "IS NOT NULL" not in monthly_sql
 
 
 def test_balance_history_accumulates_on_openings_with_carry_forward():
