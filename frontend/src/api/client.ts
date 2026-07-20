@@ -8,6 +8,8 @@ import type {
   AccountsResponse,
   Taxonomy,
   BalancePoint,
+  SubcategoryStat,
+  CategoryTrendPoint,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
@@ -53,6 +55,27 @@ export const api = {
       http.get('/v1/stats/monthly', { params }).then(unwrap<MonthlyStat[]>),
     balanceHistory: (params: { months?: number } = {}): Promise<BalancePoint[]> =>
       http.get('/v1/stats/balance-history', { params }).then(unwrap<BalancePoint[]>),
+    subcategories: (params: {
+      category: string;
+      days_back?: number;
+      direction?: 'income' | 'expense';
+    }): Promise<SubcategoryStat[]> => {
+      const { category, ...q } = params;
+      return http
+        .get(`/v1/stats/categories/${encodeURIComponent(category)}/subcategories`, { params: q })
+        .then(unwrap<SubcategoryStat[]>);
+    },
+    categoryTrend: (params: {
+      category: string;
+      months?: number;
+      direction?: 'income' | 'expense';
+      subcategory?: string;
+    }): Promise<CategoryTrendPoint[]> => {
+      const { category, ...q } = params;
+      return http
+        .get(`/v1/stats/categories/${encodeURIComponent(category)}/trend`, { params: q })
+        .then(unwrap<CategoryTrendPoint[]>);
+    },
   },
   taxonomy: {
     get: (): Promise<Taxonomy> =>

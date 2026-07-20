@@ -1,0 +1,65 @@
+.page { min-height: 100vh; background: var(--bg); padding-bottom: 88px; }
+
+.header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 20px 20px 12px;
+}
+.back {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-primary); font-size: 22px; line-height: 1;
+  padding: 4px 8px; border-radius: 8px;
+}
+.back:hover { background: var(--bg-hover); }
+.title { font-size: 22px; font-weight: 600; color: var(--text-primary); margin: 0; }
+.subtitle { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+
+.main { padding: 0 20px; display: flex; flex-direction: column; gap: 24px; }
+
+.section { display: flex; flex-direction: column; gap: 12px; }
+.sectionTitle {
+  font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-muted); margin: 0;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1px solid var(--border); background: var(--bg-elevated);
+  color: var(--text-secondary); border-radius: 999px;
+  padding: 6px 12px; font-size: 13px; cursor: pointer;
+}
+.chip:hover { background: var(--bg-hover); }
+.chipActive {
+  border-color: var(--accent); color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.chipPct { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+.tooltip {
+  background: var(--bg-elevated); border: 1px solid var(--border-strong);
+  border-radius: 8px; padding: 8px 12px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);
+}
+.tooltipValue { color: var(--accent); font-weight: 600; }
+
+.txRow {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.txInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.txMerchant {
+  font-size: 14px; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.txMeta { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+.txAmount { font-family: var(--font-mono); font-size: 14px; color: var(--text-primary); }
+
+.seeAll {
+  align-self: flex-start; margin-top: 4px;
+  font-size: 13px; color: var(--accent); text-decoration: none;
+}
+.seeAll:hover { text-decoration: underline; }
+
+.stateMsg {
+  padding: 12px; border-radius: 8px;
+  background: var(--bg-elevated); color: var(--text-muted); font-size: 13px;
+}

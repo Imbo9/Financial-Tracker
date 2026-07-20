@@ -59,8 +59,21 @@ export interface TransactionFilters {
   page_size?: number;
   days_back?: number;
   category?: string;
+  subcategory?: string;
   direction?: 'income' | 'expense';
   search?: string;
+}
+
+export interface SubcategoryStat {
+  subcategory: string;
+  total: number;
+  count: number;
+  percentage: number;
+}
+
+export interface CategoryTrendPoint {
+  month: string;
+  total: number;
 }
 
 export interface Taxonomy {

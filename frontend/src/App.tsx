@@ -6,6 +6,7 @@ import { TransactionsPage } from './pages/Transactions/TransactionsPage';
 import { StatsPage }        from './pages/Stats/StatsPage';
 import { AccountsPage }     from './pages/Accounts/AccountsPage';
 import { MorePage }         from './pages/More/MorePage';
+import { CategoryDetailPage } from './pages/CategoryDetail/CategoryDetailPage';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
             <Route index                element={<Navigate to="/transactions" replace />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/stats"        element={<StatsPage />} />
+            <Route path="/stats/category/:category" element={<CategoryDetailPage />} />
             <Route path="/accounts"     element={<AccountsPage />} />
             <Route path="/more"         element={<MorePage />} />
           </Route>

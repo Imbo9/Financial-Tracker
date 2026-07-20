@@ -33,6 +33,24 @@ export const statsQueries = {
     queryKey: ['stats', 'balance-history', months] as const,
     queryFn: () => api.stats.balanceHistory({ months }),
   }),
+  subcategories: (
+    category: string,
+    days_back = 30,
+    direction: 'income' | 'expense' = 'expense',
+  ) => ({
+    queryKey: ['stats', 'subcategories', category, days_back, direction] as const,
+    queryFn: () => api.stats.subcategories({ category, days_back, direction }),
+  }),
+  categoryTrend: (
+    category: string,
+    months = 12,
+    direction: 'income' | 'expense' = 'expense',
+    subcategory?: string,
+  ) => ({
+    // subcategory is part of the key so picking a chip refetches only this query
+    queryKey: ['stats', 'category-trend', category, months, direction, subcategory ?? null] as const,
+    queryFn: () => api.stats.categoryTrend({ category, months, direction, subcategory }),
+  }),
 };
 
 export const accountQueries = {
