@@ -100,10 +100,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  cursor: default;
   transition: opacity 0.15s;
+  /* button reset: this is a <button> so the drill-down is keyboard-reachable —
+     neutralise UA chrome so it still lays out exactly like the old div. */
   background: none;
   border: none;
+  padding: 0;
+  margin: 0;
   width: 100%;
   text-align: left;
   cursor: pointer;
