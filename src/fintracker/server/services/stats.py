@@ -131,3 +131,55 @@ def balance_history(conn, months: int = 12) -> list[dict]:
         next_month = cursor_month.month % 12 + 1
         cursor_month = date(cursor_month.year + (cursor_month.month == 12), next_month, 1)
     return series[-months:]
+
+
+def category_trend(
+    conn,
+    category: str | None,
+    months: int,
+    direction: str,
+    subcategory: str | None = None,
+) -> list[dict]:
+    """Monthly spend for one category, optionally one subcategory.
+
+    A flow, not a stock: months with no activity are 0.0. (balance_history carries
+    the previous value forward instead — do not copy that behaviour here.)
+    """
+    sign_filter = "amount > 0" if direction == "income" else "amount < 0"
+    category_filter = "category IS NULL" if category is None else "category = %s"
+    params: list = [] if category is None else [category]
+    sub_filter = ""
+    if subcategory == "No subcategory":
+        sub_filter = "AND subcategory IS NULL"
+    elif subcategory:
+        sub_filter = "AND subcategory = %s"
+        params.append(subcategory)
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f"""SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
+                       ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total
+                FROM real_transactions
+                WHERE {sign_filter}
+                  AND {category_filter}
+                  {sub_filter}
+                GROUP BY 1
+                ORDER BY 1""",
+            params,
+        )
+        rows = cur.fetchall()
+
+    totals = {r["month"]: float(r["total"]) for r in rows}
+    current = date.today().replace(day=1)
+    start = current
+    for _ in range(months - 1):
+        start = (start - timedelta(days=1)).replace(day=1)
+
+    series: list[dict] = []
+    cursor_month = start
+    while cursor_month <= current:
+        key = cursor_month.strftime("%Y-%m")
+        series.append({"month": key, "total": totals.get(key, 0.0)})
+        next_month = cursor_month.month % 12 + 1
+        cursor_month = date(cursor_month.year + (cursor_month.month == 12), next_month, 1)
+    return series

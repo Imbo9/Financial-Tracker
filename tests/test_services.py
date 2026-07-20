@@ -181,3 +181,52 @@ def test_subcategory_breakdown_income_flips_sign_filter():
 def test_subcategory_breakdown_empty_does_not_divide_by_zero():
     conn = _conn_returning([])
     assert stats.subcategory_breakdown(conn, "Car", days_back=30, direction="expense") == []
+
+
+def test_category_trend_zero_fills_empty_months():
+    m2 = _month_shift(2)
+    conn = _conn_returning([{"month": m2, "total": 40.0}])
+
+    series = stats.category_trend(conn, "Car", months=3, direction="expense")
+
+    assert [p["month"] for p in series] == [m2, _month_shift(1), _month_shift(0)]
+    # flow, not stock: a quiet month is 0.0, never the previous month's value
+    assert [p["total"] for p in series] == [40.0, 0.0, 0.0]
+    assert all(isinstance(p["total"], float) for p in series)
+
+
+def test_category_trend_returns_exactly_months_points():
+    conn = _conn_returning([])
+    series = stats.category_trend(conn, "Car", months=12, direction="expense")
+    assert len(series) == 12
+    assert series[-1]["month"] == _month_shift(0)
+    assert {p["total"] for p in series} == {0.0}
+
+
+def test_category_trend_named_subcategory_is_parameterised():
+    conn, cur = _conn_with_cursor([])
+    stats.category_trend(conn, "Car", months=6, direction="expense", subcategory="Fuel")
+    sql, params = cur.execute.call_args[0]
+    assert "subcategory = %s" in sql
+    assert "Fuel" in params
+
+
+def test_category_trend_sentinel_subcategory_uses_is_null():
+    conn, cur = _conn_with_cursor([])
+    stats.category_trend(conn, "Car", months=6, direction="expense", subcategory="No subcategory")
+    sql, params = cur.execute.call_args[0]
+    assert "subcategory IS NULL" in sql
+    assert "No subcategory" not in params
+
+
+def test_category_trend_without_subcategory_adds_no_filter():
+    conn, cur = _conn_with_cursor([])
+    stats.category_trend(conn, "Car", months=6, direction="expense")
+    assert "subcategory" not in cur.execute.call_args[0][0]
+
+
+def test_category_trend_uses_absolute_amounts():
+    conn, cur = _conn_with_cursor([])
+    stats.category_trend(conn, "Car", months=6, direction="expense")
+    # expenses must trend upward as spending grows, not plunge negative
+    assert "ABS(eur_amount)" in cur.execute.call_args[0][0]
