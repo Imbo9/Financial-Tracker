@@ -45,6 +45,7 @@ def _list_transactions(
     category: str | None,
     direction: str | None,
     search: str | None,
+    subcategory: str | None,
 ) -> dict:
     with db_conn() as conn:
         return transactions.list_transactions(
@@ -55,6 +56,7 @@ def _list_transactions(
             category=category,
             direction=direction,
             search=search,
+            subcategory=subcategory,
         )
 
 
@@ -101,8 +103,13 @@ def list_transactions_v1(
     category: str | None = None,
     direction: DirectionQ = None,
     search: str | None = None,
+    subcategory: str | None = None,
 ) -> dict:
-    return {"data": _list_transactions(page, page_size, days_back, category, direction, search)}
+    return {
+        "data": _list_transactions(
+            page, page_size, days_back, category, direction, search, subcategory
+        )
+    }
 
 
 @router_v1.post("/transactions", status_code=201)

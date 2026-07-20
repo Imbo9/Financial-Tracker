@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from fintracker.server.services import accounts, stats
+from fintracker.server.services import accounts, stats, transactions
 
 
 def _conn_with_cursor(rows):
@@ -230,3 +230,37 @@ def test_category_trend_uses_absolute_amounts():
     stats.category_trend(conn, "Car", months=6, direction="expense")
     # expenses must trend upward as spending grows, not plunge negative
     assert "ABS(eur_amount)" in cur.execute.call_args[0][0]
+
+
+def test_list_transactions_named_subcategory_is_parameterised():
+    conn, cur = _conn_with_cursor([])
+    transactions.list_transactions(
+        conn,
+        page=1,
+        page_size=50,
+        days_back=30,
+        category="Car",
+        direction=None,
+        search=None,
+        subcategory="Fuel",
+    )
+    sql, params = cur.execute.call_args[0]
+    assert "subcategory = %s" in sql
+    assert "Fuel" in params
+
+
+def test_list_transactions_sentinel_subcategory_uses_is_null():
+    conn, cur = _conn_with_cursor([])
+    transactions.list_transactions(
+        conn,
+        page=1,
+        page_size=50,
+        days_back=30,
+        category="Car",
+        direction=None,
+        search=None,
+        subcategory="No subcategory",
+    )
+    sql, params = cur.execute.call_args[0]
+    assert "subcategory IS NULL" in sql
+    assert "No subcategory" not in params

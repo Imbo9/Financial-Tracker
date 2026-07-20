@@ -38,12 +38,18 @@ def list_transactions(
     category: str | None,
     direction: str | None,
     search: str | None,
+    subcategory: str | None = None,
 ) -> dict:
     conditions = ["booking_date >= NOW() - (%s * INTERVAL '1 day')"]
     params: list[Any] = [days_back]
     if category:
         conditions.append("category = %s")
         params.append(category)
+    if subcategory == "No subcategory":
+        conditions.append("subcategory IS NULL")
+    elif subcategory:
+        conditions.append("subcategory = %s")
+        params.append(subcategory)
     if direction == "income":
         conditions.append("amount > 0")
     elif direction == "expense":

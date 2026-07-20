@@ -154,6 +154,14 @@ class TestTransactionsList:
             resp = auth_client.get("/v1/transactions?search=costa")
         assert resp.status_code == 200
 
+    def test_transactions_accepts_subcategory_filter(self, auth_client):
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ROW], {"total": 1})),
+        ):
+            resp = auth_client.get("/v1/transactions?category=Car&subcategory=Fuel")
+        assert resp.status_code == 200
+
 
 class TestCreateTransaction:
     def test_missing_auth_returns_401(self, client):
