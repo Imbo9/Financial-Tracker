@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { statsQueries } from '../../api/queries';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
 import styles from './StatsPage.module.css';
@@ -42,6 +43,7 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 };
 
 export function StatsPage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('expenses');
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
@@ -120,21 +122,29 @@ export function StatsPage() {
 
           <div className={styles.legend}>
             {categoryData.map((cat, i) => (
-              <motion.div
+              <motion.button
                 key={cat.category}
+                type="button"
                 className={styles.legendItem}
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05, duration: 0.3 }}
                 onMouseEnter={() => setActiveIdx(i)}
                 onMouseLeave={() => setActiveIdx(null)}
+                onClick={() =>
+                  navigate(
+                    `/stats/category/${encodeURIComponent(cat.category)}?direction=${
+                      tab === 'income' ? 'income' : 'expense'
+                    }`,
+                  )
+                }
                 style={{ opacity: activeIdx === null || activeIdx === i ? 1 : 0.4 }}
               >
                 <span className={styles.legendDot} style={{ background: COLORS[i % COLORS.length] }} />
                 <span className={styles.legendName}>{cat.category}</span>
                 <span className={styles.legendPct}>{cat.percentage.toFixed(1)}%</span>
                 <span className={styles.legendAmount}>€{cat.total.toFixed(2)}</span>
-              </motion.div>
+              </motion.button>
             ))}
           </div>
         </motion.section>

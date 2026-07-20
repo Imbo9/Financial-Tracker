@@ -102,6 +102,13 @@
   gap: 10px;
   cursor: default;
   transition: opacity 0.15s;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
 .legendDot {
   width: 8px;
