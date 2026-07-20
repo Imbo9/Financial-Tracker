@@ -78,5 +78,18 @@ describe('CategoryDetailPage', () => {
     expect(listMock).toHaveBeenCalledWith(
       expect.objectContaining({ category: 'Car', subcategory: 'Fuel' }),
     );
+    // the breakdown is category-scoped, so a chip must not invalidate it
+    expect(subcategoriesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces a subcategories load error instead of hiding the section', async () => {
+    subcategoriesMock.mockRejectedValue(new Error('boom'));
+    renderPage();
+
+    // Regression guard: gating the whole section on data.length would swallow this
+    // banner, because data is [] on failure — the section would vanish silently.
+    await waitFor(() =>
+      expect(screen.getByText(/Impossibile caricare le sottocategorie/)).toBeInTheDocument(),
+    );
   });
 });

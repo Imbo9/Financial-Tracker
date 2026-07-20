@@ -85,29 +85,34 @@ export function CategoryDetailPage() {
       </header>
 
       <main className={styles.main}>
-        {subData.length > 0 && (
+        {/* Section shows when there is data OR an error to report. Gating the whole
+            section on data alone would hide the error banner too (data is [] on failure),
+            silently swallowing the fetch error. Genuinely empty stays hidden by design. */}
+        {(subData.length > 0 || subcategories.isError) && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Subcategories</h2>
             {subcategories.isError && (
               <div className={styles.stateMsg}>Impossibile caricare le sottocategorie — riprova.</div>
             )}
-            <div className={styles.chips}>
-              <button
-                className={`${styles.chip} ${selectedSub === ALL ? styles.chipActive : ''}`}
-                onClick={() => setSelectedSub(ALL)}
-              >
-                {ALL}
-              </button>
-              {subData.map(s => (
+            {subData.length > 0 && (
+              <div className={styles.chips}>
                 <button
-                  key={s.subcategory}
-                  className={`${styles.chip} ${selectedSub === s.subcategory ? styles.chipActive : ''}`}
-                  onClick={() => setSelectedSub(s.subcategory)}
+                  className={`${styles.chip} ${selectedSub === ALL ? styles.chipActive : ''}`}
+                  onClick={() => setSelectedSub(ALL)}
                 >
-                  {s.subcategory} <span className={styles.chipPct}>{s.percentage.toFixed(0)}%</span>
+                  {ALL}
                 </button>
-              ))}
-            </div>
+                {subData.map(s => (
+                  <button
+                    key={s.subcategory}
+                    className={`${styles.chip} ${selectedSub === s.subcategory ? styles.chipActive : ''}`}
+                    onClick={() => setSelectedSub(s.subcategory)}
+                  >
+                    {s.subcategory} <span className={styles.chipPct}>{s.percentage.toFixed(0)}%</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
