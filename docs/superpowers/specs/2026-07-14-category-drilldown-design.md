@@ -77,7 +77,7 @@ Both on `router_v1` (JWT enforced), `{"data": [...]}` envelope, `-> dict`, reusi
 
 ### Empty and error states
 
-Category with no subcategories at all → chips show only "Tutte", breakdown section hidden rather than rendering an empty box. No transactions in the window → explicit empty message, not a blank area. Query failures surface a message per section (the balance-history lesson: a failed fetch must not render as a silently empty chart).
+Category with no subcategories at all → chips show only "All", breakdown section hidden rather than rendering an empty box. No transactions in the window → explicit empty message, not a blank area. Query failures surface a message per section (the balance-history lesson: a failed fetch must not render as a silently empty chart).
 
 ## Testing
 
