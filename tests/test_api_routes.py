@@ -464,3 +464,61 @@ class TestBalanceHistory:
     def test_months_above_24_returns_422(self, auth_client):
         resp = auth_client.get("/v1/stats/balance-history?months=25")
         assert resp.status_code == 422
+
+
+class TestCategoryDrilldown:
+    def test_subcategories_missing_auth_returns_401(self, client):
+        resp = client.get("/v1/stats/categories/Car/subcategories")
+        assert resp.status_code == 401
+
+    def test_trend_missing_auth_returns_401(self, client):
+        resp = client.get("/v1/stats/categories/Car/trend")
+        assert resp.status_code == 401
+
+    def test_subcategories_returns_float_totals(self, auth_client):
+        row = {"subcategory": "Fuel", "total": Decimal("75.00"), "count": 3}
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([row])),
+        ):
+            resp = auth_client.get("/v1/stats/categories/Car/subcategories")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert isinstance(data[0]["total"], float)
+        assert isinstance(data[0]["percentage"], float)
+
+    def test_trend_returns_float_totals(self, auth_client):
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([])),
+        ):
+            resp = auth_client.get("/v1/stats/categories/Car/trend?months=3")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert len(data) == 3
+        assert all(isinstance(p["total"], float) for p in data)
+
+    def test_trend_months_above_24_returns_422(self, auth_client):
+        resp = auth_client.get("/v1/stats/categories/Car/trend?months=25")
+        assert resp.status_code == 422
+
+    def test_category_with_space_round_trips(self, auth_client):
+        with (
+            patch("fintracker.storage.db.get_pool", return_value=_mock_pool(_mock_conn([]))),
+            patch("fintracker.server.routes.api.stats.subcategory_breakdown") as mocked,
+        ):
+            mocked.return_value = []
+            resp = auth_client.get("/v1/stats/categories/Eating%20Out/subcategories")
+        assert resp.status_code == 200
+        assert mocked.call_args[0][1] == "Eating Out"
+
+    def test_uncategorized_label_maps_to_none(self, auth_client):
+        with (
+            patch("fintracker.storage.db.get_pool", return_value=_mock_pool(_mock_conn([]))),
+            patch("fintracker.server.routes.api.stats.subcategory_breakdown") as mocked,
+        ):
+            mocked.return_value = []
+            resp = auth_client.get("/v1/stats/categories/Uncategorized/subcategories")
+        assert resp.status_code == 200
+        # the synthetic COALESCE label must become NULL, not a literal search
+        assert mocked.call_args[0][1] is None

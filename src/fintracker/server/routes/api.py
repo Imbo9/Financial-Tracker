@@ -17,6 +17,15 @@ log = logging.getLogger(__name__)
 # (response envelope {"data": ...}). The legacy unversioned mount was removed at cutover.
 router_v1 = APIRouter(dependencies=[Depends(require_jwt)])
 
+# The donut labels NULL-category rows 'Uncategorized' via COALESCE. Map that synthetic
+# label back to NULL here — the one place it is translated — so drill-down queries don't
+# search for a literal category with that name and silently return nothing.
+UNCATEGORIZED_LABEL = "Uncategorized"
+
+
+def _category_or_null(category: str) -> str | None:
+    return None if category == UNCATEGORIZED_LABEL else category
+
 
 class ManualTransactionIn(BaseModel):
     booking_date: datetime
@@ -83,6 +92,20 @@ def _stats_balance_history(months: int) -> list[dict]:
         return stats.balance_history(conn, months)
 
 
+def _stats_subcategories(category: str, days_back: int, direction: str) -> list[dict]:
+    with db_conn() as conn:
+        return stats.subcategory_breakdown(conn, _category_or_null(category), days_back, direction)
+
+
+def _stats_category_trend(
+    category: str, months: int, direction: str, subcategory: str | None
+) -> list[dict]:
+    with db_conn() as conn:
+        return stats.category_trend(
+            conn, _category_or_null(category), months, direction, subcategory
+        )
+
+
 def _accounts() -> dict:
     with db_conn() as conn:
         return accounts.balances(conn)
@@ -130,6 +153,23 @@ def stats_monthly_v1(months: MonthsQ = 12) -> dict:
 @router_v1.get("/stats/balance-history")
 def stats_balance_history_v1(months: MonthsQ = 12) -> dict:
     return {"data": _stats_balance_history(months)}
+
+
+@router_v1.get("/stats/categories/{category}/subcategories")
+def stats_subcategories_v1(
+    category: str, days_back: DaysBackQ = 30, direction: DirectionQ = None
+) -> dict:
+    return {"data": _stats_subcategories(category, days_back, direction or "expense")}
+
+
+@router_v1.get("/stats/categories/{category}/trend")
+def stats_category_trend_v1(
+    category: str,
+    months: MonthsQ = 12,
+    direction: DirectionQ = None,
+    subcategory: str | None = None,
+) -> dict:
+    return {"data": _stats_category_trend(category, months, direction or "expense", subcategory)}
 
 
 @router_v1.get("/accounts")
