@@ -145,6 +145,9 @@ def category_trend(
     A flow, not a stock: months with no activity are 0.0. (balance_history carries
     the previous value forward instead — do not copy that behaviour here.)
     """
+    # Fixed literals, never user input: the route validates direction against
+    # income|expense, and the filter shapes depend only on whether the value is None.
+    # Every user-supplied value binds through %s below.
     sign_filter = "amount > 0" if direction == "income" else "amount < 0"
     category_filter = "category IS NULL" if category is None else "category = %s"
     params: list = [] if category is None else [category]
