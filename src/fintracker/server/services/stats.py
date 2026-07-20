@@ -58,6 +58,39 @@ def monthly(conn, months: int) -> list[dict]:
     return rows
 
 
+def subcategory_breakdown(conn, category: str | None, days_back: int, direction: str) -> list[dict]:
+    """Subcategory split inside one category. `category=None` is the uncategorised bucket.
+
+    Reads real_transactions (internal rows excluded) like by_category — the opposite
+    scope from balance_history, which must include them to match EB balances.
+    """
+    # Both fixed literals, never user input: direction is route-validated, and the
+    # category filter shape depends only on whether category is None.
+    sign_filter = "amount > 0" if direction == "income" else "amount < 0"
+    category_filter = "category IS NULL" if category is None else "category = %s"
+    params: list = [] if category is None else [category]
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f"""SELECT COALESCE(subcategory, 'No subcategory') AS subcategory,
+                       ROUND(SUM(ABS(eur_amount))::numeric, 2) AS total,
+                       COUNT(*) AS count
+                FROM real_transactions
+                WHERE {sign_filter}
+                  AND {category_filter}
+                  AND booking_date >= NOW() - (%s * INTERVAL '1 day')
+                GROUP BY subcategory
+                ORDER BY total DESC""",
+            [*params, days_back],
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+    for r in rows:
+        r["total"] = float(r["total"])
+    grand_total = sum(r["total"] for r in rows) or 1
+    for r in rows:
+        r["percentage"] = round(r["total"] / grand_total * 100, 1)
+    return rows
+
+
 def balance_history(conn, months: int = 12) -> list[dict]:
     """Monthly cumulative total balance: openings + running sum of EB-account deltas.
 

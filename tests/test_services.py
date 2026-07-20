@@ -134,3 +134,50 @@ def test_balance_history_slices_window_but_keeps_older_accumulation():
     assert len(series) == 2
     assert series[0]["month"] == _month_shift(1)
     assert series[0]["balance"] == 40.0  # older net accumulated before the window
+
+
+def test_subcategory_breakdown_adds_percentages_and_floats():
+    conn = _conn_returning(
+        [
+            {"subcategory": "Fuel", "total": 75.0, "count": 3},
+            {"subcategory": "Tolls & Parking", "total": 25.0, "count": 1},
+        ]
+    )
+    out = stats.subcategory_breakdown(conn, "Car", days_back=30, direction="expense")
+    assert [r["percentage"] for r in out] == [75.0, 25.0]
+    assert all(isinstance(r["total"], float) for r in out)
+
+
+def test_subcategory_breakdown_uncategorized_uses_is_null():
+    conn, cur = _conn_with_cursor([])
+    stats.subcategory_breakdown(conn, None, days_back=30, direction="expense")
+    sql = cur.execute.call_args[0][0]
+    # 'Uncategorized' is a COALESCE label, not a stored value — a literal
+    # comparison would silently return nothing.
+    assert "category IS NULL" in sql
+    assert "category = %s" not in sql
+
+
+def test_subcategory_breakdown_named_category_is_parameterised():
+    conn, cur = _conn_with_cursor([])
+    stats.subcategory_breakdown(conn, "Car", days_back=30, direction="expense")
+    sql, params = cur.execute.call_args[0]
+    assert "category = %s" in sql
+    assert params[0] == "Car"
+
+
+def test_subcategory_breakdown_null_subcategory_gets_sentinel_label():
+    conn, cur = _conn_with_cursor([])
+    stats.subcategory_breakdown(conn, "Car", days_back=30, direction="expense")
+    assert "'No subcategory'" in cur.execute.call_args[0][0]
+
+
+def test_subcategory_breakdown_income_flips_sign_filter():
+    conn, cur = _conn_with_cursor([])
+    stats.subcategory_breakdown(conn, "Salary", days_back=30, direction="income")
+    assert "amount > 0" in cur.execute.call_args[0][0]
+
+
+def test_subcategory_breakdown_empty_does_not_divide_by_zero():
+    conn = _conn_returning([])
+    assert stats.subcategory_breakdown(conn, "Car", days_back=30, direction="expense") == []
