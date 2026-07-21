@@ -574,3 +574,15 @@ class TestStatsPeriod:
             ).status_code
             == 422
         )
+
+    def test_transactions_accept_date_range(self, auth_client):
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([FAKE_ROW], {"total": 1})),
+        ):
+            resp = auth_client.get("/v1/transactions?date_from=2026-06-01&date_to=2026-06-30")
+        assert resp.status_code == 200
+
+    def test_transactions_date_range_validated(self, auth_client):
+        resp = auth_client.get("/v1/transactions?date_from=2026-06-30&date_to=2026-06-01")
+        assert resp.status_code == 422

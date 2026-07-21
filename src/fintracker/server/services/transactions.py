@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Any
 
 from psycopg.rows import dict_row
@@ -39,9 +40,15 @@ def list_transactions(
     direction: str | None,
     search: str | None,
     subcategory: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> dict:
-    conditions = ["booking_date >= NOW() - (%s * INTERVAL '1 day')"]
-    params: list[Any] = [days_back]
+    if date_from is not None and date_to is not None:
+        conditions = ["booking_date >= %s", "booking_date < %s::date + INTERVAL '1 day'"]
+        params: list[Any] = [date_from, date_to]
+    else:
+        conditions = ["booking_date >= NOW() - (%s * INTERVAL '1 day')"]
+        params = [days_back]
     if category:
         conditions.append("category = %s")
         params.append(category)

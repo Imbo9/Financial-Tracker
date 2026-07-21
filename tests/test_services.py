@@ -142,6 +142,42 @@ def test_balance_history_slices_window_but_keeps_older_accumulation():
     assert series[0]["balance"] == 40.0  # older net accumulated before the window
 
 
+def test_list_transactions_uses_date_range_when_both_dates_given():
+    from datetime import date
+
+    conn, cur = _conn_with_cursor([])
+    transactions.list_transactions(
+        conn,
+        page=1,
+        page_size=50,
+        days_back=30,
+        category=None,
+        direction=None,
+        search=None,
+        date_from=date(2026, 6, 1),
+        date_to=date(2026, 6, 30),
+    )
+    sql, params = cur.execute.call_args[0]
+    assert "< %s::date + INTERVAL '1 day'" in sql
+    assert "INTERVAL '1 day')" not in sql or "NOW()" not in sql  # days_back window replaced
+    assert date(2026, 6, 1) in params and date(2026, 6, 30) in params
+
+
+def test_list_transactions_falls_back_to_days_back_without_dates():
+    conn, cur = _conn_with_cursor([])
+    transactions.list_transactions(
+        conn,
+        page=1,
+        page_size=50,
+        days_back=30,
+        category=None,
+        direction=None,
+        search=None,
+    )
+    sql, _ = cur.execute.call_args[0]
+    assert "NOW() - (%s * INTERVAL '1 day')" in sql
+
+
 def test_subcategory_breakdown_adds_percentages_and_floats():
     from datetime import date
 

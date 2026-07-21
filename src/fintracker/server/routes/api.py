@@ -64,6 +64,8 @@ def _list_transactions(
     direction: str | None,
     search: str | None,
     subcategory: str | None,
+    date_from: date | None,
+    date_to: date | None,
 ) -> dict:
     with db_conn() as conn:
         return transactions.list_transactions(
@@ -75,6 +77,8 @@ def _list_transactions(
             direction=direction,
             search=search,
             subcategory=subcategory,
+            date_from=date_from,
+            date_to=date_to,
         )
 
 
@@ -140,10 +144,22 @@ def list_transactions_v1(
     direction: DirectionQ = None,
     search: str | None = None,
     subcategory: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> dict:
+    if date_from is not None and date_to is not None:
+        _validate_date_range(date_from, date_to)
     return {
         "data": _list_transactions(
-            page, page_size, days_back, category, direction, search, subcategory
+            page,
+            page_size,
+            days_back,
+            category,
+            direction,
+            search,
+            subcategory,
+            date_from,
+            date_to,
         )
     }
 
