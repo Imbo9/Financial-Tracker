@@ -64,6 +64,13 @@ describe('parsePeriodParams', () => {
     // 2026-07-09 is a Thursday; its Monday is 2026-07-06
     expect(parsePeriodParams('week', '2026-07-09')).toEqual({ granularity: 'week', anchor: '2026-07-06' });
   });
+  it('rejects a day-overflow week anchor instead of coercing it (2026-02-30)', () => {
+    // JS would parse 2026-02-30 as a valid ISO date and roll it to Mar 2 — the gate
+    // must fall back to the current month, not silently show the wrong week.
+    const out = parsePeriodParams('week', '2026-02-30');
+    expect(out.granularity).toBe('month');
+    expect(out.anchor).toBe(currentAnchor('month'));
+  });
   it('passes a valid month through unchanged', () => {
     expect(parsePeriodParams('month', '2026-06')).toEqual({ granularity: 'month', anchor: '2026-06' });
   });

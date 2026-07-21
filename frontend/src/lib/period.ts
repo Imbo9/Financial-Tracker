@@ -25,8 +25,11 @@ function isValidAnchor(g: Granularity, anchor: string): boolean {
     return m >= 1 && m <= 12;
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(anchor)) return false;
-  const t = new Date(`${anchor}T00:00:00Z`).getTime();
-  return !Number.isNaN(t);
+  // JS parses '2026-02-30' as a valid ISO date and OVERFLOWS it to Mar 2 rather than
+  // returning NaN, so a NaN check alone lets a malformed day through. Round-trip: the
+  // date is real only if it serialises back to the exact input.
+  const d = new Date(`${anchor}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && ymd(d) === anchor;
 }
 
 export function periodBounds(g: Granularity, anchor: string): { from: string; to: string } {
