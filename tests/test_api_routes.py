@@ -487,7 +487,9 @@ class TestCategoryDrilldown:
             "fintracker.storage.db.get_pool",
             return_value=_mock_pool(_mock_conn([row])),
         ):
-            resp = auth_client.get("/v1/stats/categories/Car/subcategories")
+            resp = auth_client.get(
+                "/v1/stats/categories/Car/subcategories?date_from=2026-06-01&date_to=2026-06-30"
+            )
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert isinstance(data[0]["total"], float)
@@ -514,7 +516,9 @@ class TestCategoryDrilldown:
             patch("fintracker.server.routes.api.stats.subcategory_breakdown") as mocked,
         ):
             mocked.return_value = []
-            resp = auth_client.get("/v1/stats/categories/Eating%20Out/subcategories")
+            resp = auth_client.get(
+                "/v1/stats/categories/Eating%20Out/subcategories?date_from=2026-06-01&date_to=2026-06-30"
+            )
         assert resp.status_code == 200
         assert mocked.call_args[0][1] == "Eating Out"
 
@@ -524,7 +528,9 @@ class TestCategoryDrilldown:
             patch("fintracker.server.routes.api.stats.subcategory_breakdown") as mocked,
         ):
             mocked.return_value = []
-            resp = auth_client.get("/v1/stats/categories/Uncategorized/subcategories")
+            resp = auth_client.get(
+                "/v1/stats/categories/Uncategorized/subcategories?date_from=2026-06-01&date_to=2026-06-30"
+            )
         assert resp.status_code == 200
         # the synthetic COALESCE label must become NULL, not a literal search
         assert mocked.call_args[0][1] is None
@@ -559,3 +565,12 @@ class TestStatsPeriod:
         ):
             resp = auth_client.get("/v1/stats/categories?date_from=2026-06-01&date_to=2026-06-30")
         assert resp.status_code == 200
+
+    def test_subcategories_require_dates_and_validate(self, auth_client):
+        assert auth_client.get("/v1/stats/categories/Car/subcategories").status_code == 422
+        assert (
+            auth_client.get(
+                "/v1/stats/categories/Car/subcategories?date_from=2026-06-30&date_to=2026-06-01"
+            ).status_code
+            == 422
+        )

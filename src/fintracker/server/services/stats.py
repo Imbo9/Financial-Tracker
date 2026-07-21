@@ -59,7 +59,9 @@ def monthly(conn, months: int) -> list[dict]:
     return rows
 
 
-def subcategory_breakdown(conn, category: str | None, days_back: int, direction: str) -> list[dict]:
+def subcategory_breakdown(
+    conn, category: str | None, date_from: date, date_to: date, direction: str
+) -> list[dict]:
     """Subcategory split inside one category. `category=None` is the uncategorised bucket.
 
     Reads real_transactions (internal rows excluded) like by_category — the opposite
@@ -78,10 +80,11 @@ def subcategory_breakdown(conn, category: str | None, days_back: int, direction:
                 FROM real_transactions
                 WHERE {sign_filter}
                   AND {category_filter}
-                  AND booking_date >= NOW() - (%s * INTERVAL '1 day')
+                  AND booking_date >= %s
+                  AND booking_date < %s::date + INTERVAL '1 day'
                 GROUP BY subcategory
                 ORDER BY total DESC""",
-            [*params, days_back],
+            [*params, date_from, date_to],
         )
         rows = [dict(r) for r in cur.fetchall()]
     for r in rows:

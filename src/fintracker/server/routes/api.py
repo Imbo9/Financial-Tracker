@@ -101,9 +101,13 @@ def _stats_balance_history(months: int) -> list[dict]:
         return stats.balance_history(conn, months)
 
 
-def _stats_subcategories(category: str, days_back: int, direction: str) -> list[dict]:
+def _stats_subcategories(
+    category: str, date_from: date, date_to: date, direction: str
+) -> list[dict]:
     with db_conn() as conn:
-        return stats.subcategory_breakdown(conn, _category_or_null(category), days_back, direction)
+        return stats.subcategory_breakdown(
+            conn, _category_or_null(category), date_from, date_to, direction
+        )
 
 
 def _stats_category_trend(
@@ -167,9 +171,10 @@ def stats_balance_history_v1(months: MonthsQ = 12) -> dict:
 
 @router_v1.get("/stats/categories/{category}/subcategories")
 def stats_subcategories_v1(
-    category: str, days_back: DaysBackQ = 30, direction: DirectionQ = None
+    category: str, date_from: date, date_to: date, direction: DirectionQ = None
 ) -> dict:
-    return {"data": _stats_subcategories(category, days_back, direction or "expense")}
+    _validate_date_range(date_from, date_to)
+    return {"data": _stats_subcategories(category, date_from, date_to, direction or "expense")}
 
 
 @router_v1.get("/stats/categories/{category}/trend")
