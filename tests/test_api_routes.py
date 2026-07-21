@@ -302,7 +302,11 @@ class TestStats:
         assert resp.status_code == 200
 
     def test_categories_direction_invalid_returns_422(self, auth_client):
-        resp = auth_client.get("/v1/stats/categories?direction=all")
+        # Supply valid dates so the 422 isolates the invalid direction, not the now-required
+        # date params — otherwise this passes even if the DirectionQ pattern is removed.
+        resp = auth_client.get(
+            "/v1/stats/categories?date_from=2026-06-01&date_to=2026-06-30&direction=all"
+        )
         assert resp.status_code == 422
 
     def test_monthly_missing_auth_returns_401(self, client):
