@@ -174,13 +174,6 @@
   color: var(--text-secondary);
 }
 
-.monthStats {
-  display: flex;
-  gap: 12px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-
 /* Transaction row */
 .txRow {
   display: flex;
