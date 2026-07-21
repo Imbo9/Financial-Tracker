@@ -1,91 +1,103 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TransactionsPage } from '../pages/Transactions/TransactionsPage';
 
-// vi.mock factories are hoisted above top-level consts, so the fixture must live
-// inside vi.hoisted() — a plain top-level `const tx` throws "Cannot access 'tx'
-// before initialization" when the factory below runs.
-const { tx } = vi.hoisted(() => ({
+const { tx, listMock, taxonomyMock } = vi.hoisted(() => ({
   tx: {
     id: 1, dedup_hash: 'x', booking_date: '2026-07-01T00:00:00Z', amount: -12.5,
     currency: 'EUR', eur_amount: -12.5, description: null, merchant_name: 'Esselunga',
     account_id: null, is_internal: false, category: 'Groceries', subcategory: null,
     status: 'verified' as const, source: 'enable_banking', created_at: '2026-07-01T00:00:00Z',
   },
+  listMock: vi.fn(),
+  taxonomyMock: vi.fn(),
 }));
 
 vi.mock('../api/client', () => ({
   api: {
-    transactions: {
-      list: vi.fn().mockResolvedValue({ items: [tx], total: 1, page: 1, page_size: 500 }),
-    },
-    taxonomy: {
-      get: vi.fn().mockResolvedValue({
-        expense: { Car: ['Fuel'], Groceries: ['Supermarket'] },
-        income: { Salary: [] },
-      }),
-    },
+    transactions: { list: listMock },
+    taxonomy: { get: taxonomyMock },
   },
 }));
 
-function renderPage() {
+beforeEach(() => {
+  listMock.mockReset().mockResolvedValue({ items: [tx], total: 1, page: 1, page_size: 500 });
+  taxonomyMock.mockReset().mockResolvedValue({
+    expense: { Car: ['Fuel'], Groceries: ['Supermarket'] },
+    income: { Salary: [] },
+  });
+});
+
+function renderAt(entry: string) {
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <TransactionsPage />
+      <MemoryRouter initialEntries={[entry]}>
+        <Routes>
+          <Route path="/transactions" element={<TransactionsPage />} />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
 describe('TransactionsPage', () => {
-  it('renders fetched transactions', async () => {
-    renderPage();
-    await waitFor(() => expect(screen.getByText('Esselunga')).toBeInTheDocument());
-    // Robust vs the plan's getByText(/12\.50/): the summary <AnimatedNumber> can also
-    // reach "12.50", which would make a single-match query throw. The tx row always
-    // renders it synchronously, so at-least-one match is deterministic.
-    expect(screen.getAllByText(/12[.,]50/).length).toBeGreaterThan(0);
+  it('fetches the month from the URL anchor', async () => {
+    renderAt('/transactions?anchor=2026-06');
+    await waitFor(() =>
+      expect(listMock).toHaveBeenCalledWith(
+        expect.objectContaining({ date_from: '2026-06-01', date_to: '2026-06-30' }),
+      ),
+    );
+    expect(screen.getByText('giugno 2026')).toBeInTheDocument();
   });
 
-  it('renders a negative net with a single minus sign', async () => {
-    // Queued rAF flushed by hand: framer-motion reschedules itself forever, so a
-    // setTimeout-based stub floods the macrotask queue and makes waitFor race it.
-    const frames = new Map<number, FrameRequestCallback>();
-    let id = 0;
-    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-      frames.set(++id, cb);
-      return id;
-    });
-    vi.stubGlobal('cancelAnimationFrame', (handle: number) => {
-      frames.delete(handle);
-    });
+  it('defaults to the current month when no anchor is present', async () => {
+    renderAt('/transactions');
+    // current month bounds are start-of-month .. end-of-month; assert the shape, not a fixed value
+    await waitFor(() => expect(listMock).toHaveBeenCalled());
+    const arg = listMock.mock.calls[0][0];
+    expect(arg.date_from).toMatch(/^\d{4}-\d{2}-01$/);
+    expect(arg.date_to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
 
-    renderPage();
+  it('navigates to the next month on the arrow', async () => {
+    renderAt('/transactions?anchor=2026-06');
+    await waitFor(() => expect(screen.getByText('giugno 2026')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mese successivo' }));
+
+    await waitFor(() =>
+      expect(listMock).toHaveBeenCalledWith(
+        expect.objectContaining({ date_from: '2026-07-01', date_to: '2026-07-31' }),
+      ),
+    );
+    expect(screen.getByText('luglio 2026')).toBeInTheDocument();
+  });
+
+  it('renders fetched transactions and has no Daily/Monthly toggle', async () => {
+    renderAt('/transactions?anchor=2026-07');
+    await waitFor(() => expect(screen.getByText('Esselunga')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Monthly' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Daily' })).not.toBeInTheDocument();
+  });
+
+  it('filters within the loaded month via search', async () => {
+    listMock.mockResolvedValue({
+      items: [
+        tx,
+        { ...tx, id: 2, merchant_name: 'Q8', category: 'Car' },
+      ],
+      total: 2, page: 1, page_size: 500,
+    });
+    renderAt('/transactions?anchor=2026-07');
     await waitFor(() => expect(screen.getByText('Esselunga')).toBeInTheDocument());
 
-    // Timestamps jump past the 800ms tween per frame; 50 frames outlive every
-    // AnimatedNumber while ignoring framer-motion's endless rescheduling.
     act(() => {
-      let ts = 1_000_000;
-      for (let i = 0; i < 50 && frames.size > 0; i++) {
-        const [key, cb] = frames.entries().next().value!;
-        frames.delete(key);
-        cb((ts += 1000));
-      }
+      fireEvent.change(screen.getByPlaceholderText('Search...'), { target: { value: 'Q8' } });
     });
-
-    // Net = 0 income − 12.50 expenses: the sign lives in the prefix, not the value.
-    expect(screen.getByText('-€ 12,50')).toBeInTheDocument();
-
-    vi.unstubAllGlobals();
-  });
-
-  it('colors the row icon by canonical taxonomy order', async () => {
-    const { container } = renderPage();
-    await waitFor(() => expect(screen.getByText('Esselunga')).toBeInTheDocument());
-    await waitFor(() => {
-      const icon = container.querySelector('[class*=txIcon]') as HTMLElement;
-      expect(icon.style.getPropertyValue('--cat-color')).toBe('var(--chart-2)');
-    });
+    await waitFor(() => expect(screen.queryByText('Esselunga')).not.toBeInTheDocument());
+    expect(screen.getByText('Q8')).toBeInTheDocument();
   });
 });

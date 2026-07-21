@@ -93,29 +93,24 @@
   align-items: center;
 }
 
-.toggle {
-  display: flex;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-md);
-  padding: 3px;
-  gap: 2px;
+.monthNav { display: flex; align-items: center; gap: 8px; }
+.navArrow {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
-
-.toggleBtn {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 6px 14px;
-  border-radius: calc(var(--radius-md) - 2px);
-  color: var(--text-muted);
-  transition: color 0.15s, background 0.15s;
-}
-.toggleBtn:hover { color: var(--text-secondary); }
-.toggleActive {
-  background: var(--bg-surface) !important;
-  color: var(--text-primary) !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+.navArrow:hover { background: var(--bg-hover); }
+.navLabel {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 120px;
+  text-align: center;
 }
 
 .searchWrap {

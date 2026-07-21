@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Transaction } from '../../api/types';
 import { transactionQueries, taxonomyQueries } from '../../api/queries';
+import { periodBounds, shiftPeriod, formatPeriodLabel, parsePeriodParams } from '../../lib/period';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
 import { AddTransactionModal } from './AddTransactionModal';
 import styles from './TransactionsPage.module.css';
-
-type ViewMode = 'daily' | 'monthly';
 
 function groupByDate(txs: Transaction[]): Record<string, Transaction[]> {
   return txs.reduce<Record<string, Transaction[]>>((acc, tx) => {
@@ -22,32 +22,29 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long' });
 }
 
-function formatMonth(iso: string): string {
-  const d = new Date(iso + '-01');
-  return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
-}
-
-function groupByMonth(txs: Transaction[]): Record<string, Transaction[]> {
-  return txs.reduce<Record<string, Transaction[]>>((acc, tx) => {
-    const month = tx.booking_date.slice(0, 7);
-    (acc[month] ??= []).push(tx);
-    return acc;
-  }, {});
-}
-
 function categoryInitial(cat: string | null): string {
   if (!cat) return '?';
   return cat[0].toUpperCase();
 }
 
 export function TransactionsPage() {
-  const [view, setView] = useState<ViewMode>('daily');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { anchor } = parsePeriodParams('month', searchParams.get('anchor'));
+  const { from, to } = periodBounds('month', anchor);
+
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
 
+  const setAnchor = (a: string) => {
+    setSearchParams(prev => {
+      prev.set('anchor', a);
+      return prev;
+    });
+  };
+
   const queryClient = useQueryClient();
   const { data, isPending, isError } = useQuery({
-    ...transactionQueries.list({ days_back: 90, page_size: 500 }),
+    ...transactionQueries.list({ date_from: from, date_to: to, page_size: 500 }),
   });
   const transactions = useMemo(() => data?.items ?? [], [data]);
 
@@ -75,8 +72,7 @@ export function TransactionsPage() {
   const totalIncome   = filtered.filter(t => t.amount > 0).reduce((s, t) => s + t.eur_amount, 0);
   const totalExpenses = filtered.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.eur_amount), 0);
 
-  const dailyGroups   = groupByDate(filtered);
-  const monthlyGroups = groupByMonth(filtered);
+  const dailyGroups = groupByDate(filtered);
 
   return (
     <div className={styles.page}>
@@ -110,16 +106,24 @@ export function TransactionsPage() {
         </div>
 
         <div className={styles.controls}>
-          <div className={styles.toggle}>
-            {(['daily', 'monthly'] as ViewMode[]).map(v => (
-              <button
-                key={v}
-                className={`${styles.toggleBtn} ${view === v ? styles.toggleActive : ''}`}
-                onClick={() => setView(v)}
-              >
-                {v.charAt(0).toUpperCase() + v.slice(1)}
-              </button>
-            ))}
+          <div className={styles.monthNav}>
+            <button
+              type="button"
+              className={styles.navArrow}
+              aria-label="Mese precedente"
+              onClick={() => setAnchor(shiftPeriod('month', anchor, -1))}
+            >
+              ‹
+            </button>
+            <span className={styles.navLabel}>{formatPeriodLabel('month', anchor)}</span>
+            <button
+              type="button"
+              className={styles.navArrow}
+              aria-label="Mese successivo"
+              onClick={() => setAnchor(shiftPeriod('month', anchor, 1))}
+            >
+              ›
+            </button>
           </div>
           <div className={styles.searchWrap}>
             <svg className={styles.searchIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -136,60 +140,32 @@ export function TransactionsPage() {
       <main className={styles.main}>
         {isPending && <div className={styles.loadingMsg}>Loading…</div>}
         {isError && <div className={styles.loadingMsg}>Impossibile caricare le transazioni — riprova.</div>}
-
-        {view === 'daily' && (
-          <AnimatePresence>
-            {Object.entries(dailyGroups)
-              .sort(([a], [b]) => b.localeCompare(a))
-              .map(([date, txs], gi) => (
-                <motion.section
-                  key={date}
-                  className={styles.group}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: gi * 0.04, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <div className={styles.groupHeader}>
-                    <span className={styles.groupDate}>{formatDate(date)}</span>
-                    <span className={styles.groupTotal}>
-                      {txs.reduce((s, t) => s + t.eur_amount, 0) >= 0 ? '+' : ''}
-                      €{Math.abs(txs.reduce((s, t) => s + t.eur_amount, 0)).toFixed(2)}
-                    </span>
-                  </div>
-                  {txs.map((tx, i) => <TxRow key={tx.id} tx={tx} index={i} color={colorOf(tx.category)} />)}
-                </motion.section>
-              ))}
-          </AnimatePresence>
+        {!isPending && !isError && filtered.length === 0 && (
+          <div className={styles.loadingMsg}>Nessuna transazione in questo mese.</div>
         )}
 
-        {view === 'monthly' && (
-          <AnimatePresence>
-            {Object.entries(monthlyGroups)
-              .sort(([a], [b]) => b.localeCompare(a))
-              .map(([month, txs], gi) => {
-                const income   = txs.filter(t => t.amount > 0).reduce((s, t) => s + t.eur_amount, 0);
-                const expenses = txs.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.eur_amount), 0);
-                return (
-                  <motion.section
-                    key={month}
-                    className={styles.group}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: gi * 0.06, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                  >
-                    <div className={styles.groupHeader}>
-                      <span className={styles.groupDate}>{formatMonth(month)}</span>
-                      <div className={styles.monthStats}>
-                        <span className={styles.income}>+€{income.toFixed(2)}</span>
-                        <span className={styles.expense}>-€{expenses.toFixed(2)}</span>
-                      </div>
-                    </div>
-                    {txs.map((tx, i) => <TxRow key={tx.id} tx={tx} index={i} color={colorOf(tx.category)} />)}
-                  </motion.section>
-                );
-              })}
-          </AnimatePresence>
-        )}
+        <AnimatePresence>
+          {Object.entries(dailyGroups)
+            .sort(([a], [b]) => b.localeCompare(a))
+            .map(([date, txs], gi) => (
+              <motion.section
+                key={date}
+                className={styles.group}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: gi * 0.04, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className={styles.groupHeader}>
+                  <span className={styles.groupDate}>{formatDate(date)}</span>
+                  <span className={styles.groupTotal}>
+                    {txs.reduce((s, t) => s + t.eur_amount, 0) >= 0 ? '+' : ''}
+                    €{Math.abs(txs.reduce((s, t) => s + t.eur_amount, 0)).toFixed(2)}
+                  </span>
+                </div>
+                {txs.map((tx, i) => <TxRow key={tx.id} tx={tx} index={i} color={colorOf(tx.category)} />)}
+              </motion.section>
+            ))}
+        </AnimatePresence>
       </main>
 
       {showAdd && <AddTransactionModal onClose={() => setShowAdd(false)} onAdd={() => queryClient.invalidateQueries({ queryKey: ['transactions'] })} />}
