@@ -48,7 +48,7 @@ export const api = {
   },
   stats: {
     categories: (
-      params: { days_back?: number; direction?: 'income' | 'expense' } = {},
+      params: { date_from: string; date_to: string; direction?: 'income' | 'expense' },
     ): Promise<CategoryStat[]> =>
       http.get('/v1/stats/categories', { params }).then(unwrap<CategoryStat[]>),
     monthly: (params: { months?: number } = {}): Promise<MonthlyStat[]> =>
@@ -57,7 +57,8 @@ export const api = {
       http.get('/v1/stats/balance-history', { params }).then(unwrap<BalancePoint[]>),
     subcategories: (params: {
       category: string;
-      days_back?: number;
+      date_from: string;
+      date_to: string;
       direction?: 'income' | 'expense';
     }): Promise<SubcategoryStat[]> => {
       const { category, ...q } = params;

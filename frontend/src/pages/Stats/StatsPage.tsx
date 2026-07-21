@@ -2,10 +2,20 @@ import { useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { statsQueries } from '../../api/queries';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
+import {
+  currentAnchor,
+  periodBounds,
+  shiftPeriod,
+  formatPeriodLabel,
+  parsePeriodParams,
+  type Granularity,
+} from '../../lib/period';
 import styles from './StatsPage.module.css';
+
+const currentAnchorFor = (g: Granularity) => currentAnchor(g);
 
 const COLORS = [
   'var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)',
@@ -44,11 +54,26 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
 
 export function StatsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('expenses');
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
+  const { granularity, anchor } = parsePeriodParams(
+    searchParams.get('granularity'),
+    searchParams.get('anchor'),
+  );
+  const { from, to } = periodBounds(granularity, anchor);
+
+  const setPeriod = (g: Granularity, a: string) => {
+    setSearchParams(prev => {
+      prev.set('granularity', g);
+      prev.set('anchor', a);
+      return prev;
+    });
+  };
+
   const categories = useQuery({
-    ...statsQueries.categories(30, tab === 'income' ? 'income' : 'expense'),
+    ...statsQueries.categories(from, to, tab === 'income' ? 'income' : 'expense'),
   });
   const monthly = useQuery({ ...statsQueries.monthly(12) });
   const categoryData = categories.data ?? [];
@@ -73,6 +98,40 @@ export function StatsPage() {
           ))}
         </div>
       </header>
+
+      <div className={styles.periodBar}>
+        <div className={styles.granTabs}>
+          {(['week', 'month', 'year'] as Granularity[]).map(g => (
+            <button
+              key={g}
+              type="button"
+              className={`${styles.granTab} ${granularity === g ? styles.granTabActive : ''}`}
+              onClick={() => setPeriod(g, currentAnchorFor(g))}
+            >
+              {g === 'week' ? 'Week' : g === 'month' ? 'Month' : 'Year'}
+            </button>
+          ))}
+        </div>
+        <div className={styles.periodNav}>
+          <button
+            type="button"
+            className={styles.periodArrow}
+            aria-label="Periodo precedente"
+            onClick={() => setPeriod(granularity, shiftPeriod(granularity, anchor, -1))}
+          >
+            ‹
+          </button>
+          <span className={styles.periodLabel}>{formatPeriodLabel(granularity, anchor)}</span>
+          <button
+            type="button"
+            className={styles.periodArrow}
+            aria-label="Periodo successivo"
+            onClick={() => setPeriod(granularity, shiftPeriod(granularity, anchor, 1))}
+          >
+            ›
+          </button>
+        </div>
+      </div>
 
       <main className={styles.main}>
         {isError && <div className={styles.stateMsg}>Impossibile caricare le statistiche — riprova.</div>}
@@ -133,9 +192,9 @@ export function StatsPage() {
                 onMouseLeave={() => setActiveIdx(null)}
                 onClick={() =>
                   navigate(
-                    `/stats/category/${encodeURIComponent(cat.category)}?direction=${
-                      tab === 'income' ? 'income' : 'expense'
-                    }`,
+                    `/stats/category/${encodeURIComponent(cat.category)}` +
+                      `?direction=${tab === 'income' ? 'income' : 'expense'}` +
+                      `&granularity=${granularity}&anchor=${anchor}`,
                   )
                 }
                 style={{ opacity: activeIdx === null || activeIdx === i ? 1 : 0.4 }}

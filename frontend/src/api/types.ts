@@ -58,6 +58,8 @@ export interface TransactionFilters {
   page?: number;
   page_size?: number;
   days_back?: number;
+  date_from?: string;
+  date_to?: string;
   category?: string;
   subcategory?: string;
   direction?: 'income' | 'expense';

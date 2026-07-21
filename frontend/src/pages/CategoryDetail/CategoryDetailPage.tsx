@@ -6,11 +6,11 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { statsQueries, transactionQueries } from '../../api/queries';
+import { currentAnchor, formatPeriodLabel, periodBounds } from '../../lib/period';
 import styles from './CategoryDetailPage.module.css';
 
 const ALL = 'All';
 const TREND_MONTHS = 12;
-const DAYS_BACK = 30;
 const TX_LIMIT = 20;
 
 function formatMonth(iso: string): string {
@@ -45,12 +45,16 @@ export function CategoryDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const direction = searchParams.get('direction') === 'income' ? 'income' : 'expense';
+  // TODO: this page doesn't yet read granularity/anchor from the URL (ST1 Task 6) —
+  // defaulting to the current month keeps it on the same calendar math as the rest
+  // of Stats (lib/period.ts) instead of the old rolling 30-day window.
+  const { from, to } = periodBounds('month', currentAnchor('month'));
 
   const [selectedSub, setSelectedSub] = useState<string>(ALL);
   const subFilter = selectedSub === ALL ? undefined : selectedSub;
 
   const subcategories = useQuery({
-    ...statsQueries.subcategories(category, DAYS_BACK, direction),
+    ...statsQueries.subcategories(category, from, to, direction),
   });
   const trend = useQuery({
     ...statsQueries.categoryTrend(category, TREND_MONTHS, direction, subFilter),
@@ -60,7 +64,8 @@ export function CategoryDetailPage() {
       category,
       subcategory: subFilter,
       direction,
-      days_back: DAYS_BACK,
+      date_from: from,
+      date_to: to,
       page_size: TX_LIMIT,
     }),
   });
@@ -79,7 +84,8 @@ export function CategoryDetailPage() {
         <div>
           <h1 className={styles.title}>{category}</h1>
           <span className={styles.subtitle}>
-            € {periodTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })} · ultimi 30 giorni
+            € {periodTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })} ·{' '}
+            {formatPeriodLabel('month', currentAnchor('month'))}
           </span>
         </div>
       </header>

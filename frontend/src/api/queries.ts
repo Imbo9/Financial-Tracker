@@ -21,9 +21,9 @@ export const transactionQueries = {
 };
 
 export const statsQueries = {
-  categories: (days_back = 30, direction: 'income' | 'expense' = 'expense') => ({
-    queryKey: ['stats', 'categories', days_back, direction] as const,
-    queryFn: () => api.stats.categories({ days_back, direction }),
+  categories: (date_from: string, date_to: string, direction: 'income' | 'expense' = 'expense') => ({
+    queryKey: ['stats', 'categories', date_from, date_to, direction] as const,
+    queryFn: () => api.stats.categories({ date_from, date_to, direction }),
   }),
   monthly: (months = 12) => ({
     queryKey: ['stats', 'monthly', months] as const,
@@ -35,11 +35,12 @@ export const statsQueries = {
   }),
   subcategories: (
     category: string,
-    days_back = 30,
+    date_from: string,
+    date_to: string,
     direction: 'income' | 'expense' = 'expense',
   ) => ({
-    queryKey: ['stats', 'subcategories', category, days_back, direction] as const,
-    queryFn: () => api.stats.subcategories({ category, days_back, direction }),
+    queryKey: ['stats', 'subcategories', category, date_from, date_to, direction] as const,
+    queryFn: () => api.stats.subcategories({ category, date_from, date_to, direction }),
   }),
   categoryTrend: (
     category: string,

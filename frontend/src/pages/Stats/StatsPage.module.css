@@ -182,7 +182,53 @@
 .netPos { color: var(--income); }
 .netNeg { color: var(--expense); }
 
+/* Period selector */
+.periodBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 0 28px;
+  flex-wrap: wrap;
+}
+.granTabs { display: flex; gap: 4px; }
+.granTab {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.granTabActive {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.periodNav { display: flex; align-items: center; gap: 8px; }
+.periodArrow {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.periodArrow:hover { background: var(--bg-hover); }
+.periodLabel {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 120px;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
-  .header { padding: 20px 16px 16px; }
-  .main   { padding: 16px; gap: 20px; }
+  .header    { padding: 20px 16px 16px; }
+  .periodBar { padding: 0 16px; }
+  .main      { padding: 16px; gap: 20px; }
 }
