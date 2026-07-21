@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -21,6 +21,15 @@ router_v1 = APIRouter(dependencies=[Depends(require_jwt)])
 # label back to NULL here — the one place it is translated — so drill-down queries don't
 # search for a literal category with that name and silently return nothing.
 UNCATEGORIZED_LABEL = "Uncategorized"
+
+_MAX_SPAN_DAYS = 366  # a full year; the widest supported period (leap years included)
+
+
+def _validate_date_range(date_from: date, date_to: date) -> None:
+    if date_from > date_to:
+        raise HTTPException(status_code=422, detail="date_from must not be after date_to")
+    if (date_to - date_from).days + 1 > _MAX_SPAN_DAYS:
+        raise HTTPException(status_code=422, detail="date range must not exceed 366 days")
 
 
 def _category_or_null(category: str) -> str | None:
@@ -77,9 +86,9 @@ def _create_transaction(body: ManualTransactionIn) -> dict:
     return row
 
 
-def _stats_categories(days_back: int, direction: str) -> list[dict]:
+def _stats_categories(date_from: date, date_to: date, direction: str) -> list[dict]:
     with db_conn() as conn:
-        return stats.by_category(conn, days_back, direction)
+        return stats.by_category(conn, date_from, date_to, direction)
 
 
 def _stats_monthly(months: int) -> list[dict]:
@@ -141,8 +150,9 @@ def create_transaction_v1(body: ManualTransactionIn) -> dict:
 
 
 @router_v1.get("/stats/categories")
-def stats_categories_v1(days_back: DaysBackQ = 30, direction: DirectionQ = None) -> dict:
-    return {"data": _stats_categories(days_back, direction or "expense")}
+def stats_categories_v1(date_from: date, date_to: date, direction: DirectionQ = None) -> dict:
+    _validate_date_range(date_from, date_to)
+    return {"data": _stats_categories(date_from, date_to, direction or "expense")}
 
 
 @router_v1.get("/stats/monthly")

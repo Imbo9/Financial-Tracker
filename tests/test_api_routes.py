@@ -282,7 +282,7 @@ class TestStats:
             "fintracker.storage.db.get_pool",
             return_value=_mock_pool(_mock_conn([FAKE_CATEGORY_ROW])),
         ):
-            resp = auth_client.get("/v1/stats/categories")
+            resp = auth_client.get("/v1/stats/categories?date_from=2026-06-01&date_to=2026-06-30")
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert len(data) == 1
@@ -296,7 +296,9 @@ class TestStats:
             "fintracker.storage.db.get_pool",
             return_value=_mock_pool(_mock_conn([FAKE_CATEGORY_ROW])),
         ):
-            resp = auth_client.get("/v1/stats/categories?direction=income")
+            resp = auth_client.get(
+                "/v1/stats/categories?date_from=2026-06-01&date_to=2026-06-30&direction=income"
+            )
         assert resp.status_code == 200
 
     def test_categories_direction_invalid_returns_422(self, auth_client):
@@ -391,7 +393,7 @@ class TestMoneyJsonTypesGuard:
             "fintracker.storage.db.get_pool",
             return_value=_mock_pool(_mock_conn([row])),
         ):
-            resp = auth_client.get("/v1/stats/categories")
+            resp = auth_client.get("/v1/stats/categories?date_from=2026-06-01&date_to=2026-06-30")
 
         assert isinstance(resp.json()["data"][0]["total"], float)
 
@@ -522,3 +524,34 @@ class TestCategoryDrilldown:
         assert resp.status_code == 200
         # the synthetic COALESCE label must become NULL, not a literal search
         assert mocked.call_args[0][1] is None
+
+
+class TestStatsPeriod:
+    def test_categories_missing_dates_returns_422(self, auth_client):
+        resp = auth_client.get("/v1/stats/categories")
+        assert resp.status_code == 422  # date_from/date_to now required
+
+    def test_categories_from_after_to_returns_422(self, auth_client):
+        resp = auth_client.get("/v1/stats/categories?date_from=2026-06-30&date_to=2026-06-01")
+        assert resp.status_code == 422
+
+    def test_categories_span_over_366_days_returns_422(self, auth_client):
+        resp = auth_client.get("/v1/stats/categories?date_from=2025-01-01&date_to=2026-06-01")
+        assert resp.status_code == 422
+
+    def test_categories_leap_year_is_allowed(self, auth_client):
+        # 2028-01-01..2028-12-31 is 366 inclusive days — must be admitted
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([])),
+        ):
+            resp = auth_client.get("/v1/stats/categories?date_from=2028-01-01&date_to=2028-12-31")
+        assert resp.status_code == 200
+
+    def test_categories_valid_range_returns_200(self, auth_client):
+        with patch(
+            "fintracker.storage.db.get_pool",
+            return_value=_mock_pool(_mock_conn([])),
+        ):
+            resp = auth_client.get("/v1/stats/categories?date_from=2026-06-01&date_to=2026-06-30")
+        assert resp.status_code == 200

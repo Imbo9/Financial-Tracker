@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from psycopg.rows import dict_row
 
 
-def by_category(conn, days_back: int, direction: str = "expense") -> list[dict]:
+def by_category(conn, date_from: date, date_to: date, direction: str = "expense") -> list[dict]:
     # Fixed literal, never user input: the route validates direction against income|expense.
     sign_filter = "amount > 0" if direction == "income" else "amount < 0"
     with conn.cursor(row_factory=dict_row) as cur:
@@ -13,10 +13,11 @@ def by_category(conn, days_back: int, direction: str = "expense") -> list[dict]:
                        COUNT(*) AS count
                 FROM real_transactions
                 WHERE {sign_filter}
-                  AND booking_date >= NOW() - (%s * INTERVAL '1 day')
+                  AND booking_date >= %s
+                  AND booking_date < %s::date + INTERVAL '1 day'
                 GROUP BY category
                 ORDER BY total DESC""",
-            (days_back,),
+            (date_from, date_to),
         )
         rows = [dict(r) for r in cur.fetchall()]
     # numeric columns arrive as Decimal; uncast, pydantic v2 serializes them as JSON strings

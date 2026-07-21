@@ -38,25 +38,31 @@ def _conn_for_history(openings_total, monthly_rows):
 
 
 def test_stats_by_category_defaults_to_expense_filter():
+    from datetime import date
+
     conn, cur = _conn_with_cursor([{"category": "Food", "total": 75.0, "count": 3}])
-    stats.by_category(conn, days_back=30)
+    stats.by_category(conn, date(2026, 6, 1), date(2026, 6, 30))
     assert "amount < 0" in cur.execute.call_args[0][0]
 
 
 def test_stats_by_category_income_direction_flips_sign_filter():
+    from datetime import date
+
     conn, cur = _conn_with_cursor([{"category": "Income", "total": 100.0, "count": 1}])
-    stats.by_category(conn, days_back=30, direction="income")
+    stats.by_category(conn, date(2026, 6, 1), date(2026, 6, 30), direction="income")
     assert "amount > 0" in cur.execute.call_args[0][0]
 
 
 def test_stats_by_category_adds_percentage():
+    from datetime import date
+
     conn = _conn_returning(
         [
             {"category": "Food", "total": 75.0, "count": 3},
             {"category": "Travel", "total": 25.0, "count": 1},
         ]
     )
-    rows = stats.by_category(conn, days_back=30)
+    rows = stats.by_category(conn, date(2026, 6, 1), date(2026, 6, 30))
     assert rows[0]["percentage"] == 75.0
     assert rows[1]["percentage"] == 25.0
 
@@ -264,3 +270,15 @@ def test_list_transactions_sentinel_subcategory_uses_is_null():
     sql, params = cur.execute.call_args[0]
     assert "subcategory IS NULL" in sql
     assert "No subcategory" not in params
+
+
+def test_by_category_binds_both_dates_and_is_inclusive_to_date_to():
+    from datetime import date
+
+    conn, cur = _conn_with_cursor([])
+    stats.by_category(conn, date(2026, 6, 1), date(2026, 6, 30), direction="expense")
+    sql, params = cur.execute.call_args[0]
+    assert "booking_date >= %s" in sql
+    assert "< %s::date + INTERVAL '1 day'" in sql  # half-open upper bound => date_to inclusive
+    assert "days_back" not in sql.lower()
+    assert params == (date(2026, 6, 1), date(2026, 6, 30))
