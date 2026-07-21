@@ -178,6 +178,28 @@ def test_list_transactions_falls_back_to_days_back_without_dates():
     assert "NOW() - (%s * INTERVAL '1 day')" in sql
 
 
+def test_list_transactions_one_date_alone_falls_back_to_days_back():
+    from datetime import date
+
+    # Only date_from, no date_to: the range needs BOTH, so this must cleanly use the
+    # days_back window rather than emitting a half-formed range or mis-binding params.
+    conn, cur = _conn_with_cursor([])
+    transactions.list_transactions(
+        conn,
+        page=1,
+        page_size=50,
+        days_back=30,
+        category=None,
+        direction=None,
+        search=None,
+        date_from=date(2026, 6, 1),
+    )
+    sql, params = cur.execute.call_args[0]
+    assert "NOW() - (%s * INTERVAL '1 day')" in sql
+    assert "INTERVAL '1 day'" in sql and "::date" not in sql  # no half-open range emitted
+    assert date(2026, 6, 1) not in params  # the stray single date is ignored
+
+
 def test_subcategory_breakdown_adds_percentages_and_floats():
     from datetime import date
 
