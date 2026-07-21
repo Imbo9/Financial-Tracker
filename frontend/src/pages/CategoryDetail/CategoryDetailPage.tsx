@@ -6,7 +6,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { statsQueries, transactionQueries } from '../../api/queries';
-import { currentAnchor, formatPeriodLabel, periodBounds } from '../../lib/period';
+import { formatPeriodLabel, parsePeriodParams, periodBounds } from '../../lib/period';
 import styles from './CategoryDetailPage.module.css';
 
 const ALL = 'All';
@@ -45,10 +45,11 @@ export function CategoryDetailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const direction = searchParams.get('direction') === 'income' ? 'income' : 'expense';
-  // TODO: this page doesn't yet read granularity/anchor from the URL (ST1 Task 6) —
-  // defaulting to the current month keeps it on the same calendar math as the rest
-  // of Stats (lib/period.ts) instead of the old rolling 30-day window.
-  const { from, to } = periodBounds('month', currentAnchor('month'));
+  const { granularity, anchor } = parsePeriodParams(
+    searchParams.get('granularity'),
+    searchParams.get('anchor'),
+  );
+  const { from, to } = periodBounds(granularity, anchor);
 
   const [selectedSub, setSelectedSub] = useState<string>(ALL);
   const subFilter = selectedSub === ALL ? undefined : selectedSub;
@@ -85,7 +86,7 @@ export function CategoryDetailPage() {
           <h1 className={styles.title}>{category}</h1>
           <span className={styles.subtitle}>
             € {periodTotal.toLocaleString('it-IT', { minimumFractionDigits: 2 })} ·{' '}
-            {formatPeriodLabel('month', currentAnchor('month'))}
+            {formatPeriodLabel(granularity, anchor)}
           </span>
         </div>
       </header>

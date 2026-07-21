@@ -92,4 +92,29 @@ describe('CategoryDetailPage', () => {
       expect(screen.getByText(/Impossibile caricare le sottocategorie/)).toBeInTheDocument(),
     );
   });
+
+  it('inherits the period from the URL for the breakdown and transaction queries', async () => {
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <MemoryRouter
+          initialEntries={['/stats/category/Car?direction=expense&granularity=month&anchor=2026-06']}
+        >
+          <Routes>
+            <Route path="/stats/category/:category" element={<CategoryDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() =>
+      expect(subcategoriesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'Car', date_from: '2026-06-01', date_to: '2026-06-30' }),
+      ),
+    );
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'Car', date_from: '2026-06-01', date_to: '2026-06-30' }),
+    );
+  });
 });
