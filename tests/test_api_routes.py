@@ -658,3 +658,45 @@ class TestAccountsRoutes:
             == 401
         )
         assert client.delete("/v1/accounts/x").status_code == 401
+
+
+def test_manual_transaction_rejects_unknown_account(auth_client):
+    conn = _mock_conn()
+    with (
+        patch("fintracker.server.services.accounts.get_account", return_value=None),
+        patch("fintracker.server.routes.api.db_conn") as db,
+    ):
+        db.return_value.__enter__.return_value = conn
+        r = auth_client.post(
+            "/v1/transactions",
+            json={
+                "booking_date": "2026-07-01T00:00:00Z",
+                "amount": -5,
+                "eur_amount": -5,
+                "currency": "EUR",
+                "merchant_name": "Bar",
+                "account_id": "manual:ghost",
+            },
+        )
+    assert r.status_code == 422
+
+
+def test_manual_transaction_without_account_still_creates(auth_client):
+    created = dict(FAKE_ROW, account_id=None)
+    conn = _mock_conn()
+    with (
+        patch("fintracker.server.services.transactions.create_manual", return_value=created),
+        patch("fintracker.server.routes.api.db_conn") as db,
+    ):
+        db.return_value.__enter__.return_value = conn
+        r = auth_client.post(
+            "/v1/transactions",
+            json={
+                "booking_date": "2026-07-01T00:00:00Z",
+                "amount": -5,
+                "eur_amount": -5,
+                "currency": "EUR",
+                "merchant_name": "Bar",
+            },
+        )
+    assert r.status_code == 201

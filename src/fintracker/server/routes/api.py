@@ -109,6 +109,8 @@ def _list_transactions(
 
 def _create_transaction(body: ManualTransactionIn) -> dict:
     with db_conn() as conn:
+        if body.account_id is not None and accounts.get_account(conn, body.account_id) is None:
+            raise HTTPException(status_code=422, detail="unknown account_id")
         row = transactions.create_manual(conn, body.model_dump())
     if row is None:
         raise HTTPException(status_code=409, detail="Duplicate transaction")
