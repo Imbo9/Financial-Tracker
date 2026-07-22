@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { AccountsPage } from '../pages/Accounts/AccountsPage';
@@ -9,8 +9,13 @@ vi.mock('../api/client', () => ({
       list: vi.fn().mockResolvedValue({
         assets: 150.0,
         liabilities: 0,
-        accounts: [{ account_id: 'uid-1', balance: 150.0, display_name: 'Revolut Main' }],
+        accounts: [{
+          account_id: 'uid-1', balance: 150.0, display_name: 'Revolut Main',
+          type: 'bank', currency: 'EUR', is_manual: false, opening_balance: 150.0,
+        }],
       }),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
     },
     stats: {
       balanceHistory: vi.fn().mockResolvedValue([
@@ -41,5 +46,11 @@ describe('AccountsPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Revolut Main')).toBeInTheDocument());
     expect(screen.queryByText('uid-1')).not.toBeInTheDocument();
+  });
+
+  it('opens the account modal from the add control', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /add account/i }));
+    expect(await screen.findByLabelText('Name')).toBeInTheDocument();
   });
 });

@@ -113,8 +113,15 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  width: 100%;
   padding: 12px 0;
+  border: none;
   border-bottom: 1px solid var(--border);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
 .accountRow:last-child { border-bottom: none; }
 
@@ -134,6 +141,21 @@
 .accountName { font-family: var(--font-body); font-size: 14px; font-weight: 500; color: var(--text-primary); }
 .accountType { font-family: var(--font-body); font-size: 11px; color: var(--text-muted); text-transform: capitalize; }
 .accountBalance { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--text-primary); }
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.addBtn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px 10px;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
 
 /* Sync note */
 .syncNote {

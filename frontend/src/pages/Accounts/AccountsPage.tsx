@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AnimatedNumber } from '../../components/AnimatedNumber';
+import { AccountModal } from './AccountModal';
 import { accountQueries, statsQueries } from '../../api/queries';
-import type { AccountsResponse } from '../../api/types';
+import type { AccountsResponse, AccountBalance } from '../../api/types';
 import styles from './AccountsPage.module.css';
 
 const DEFAULT_DATA: AccountsResponse = { assets: 0, liabilities: 0, accounts: [] };
@@ -51,6 +53,15 @@ export function AccountsPage() {
   const historyData = history.data ?? [];
 
   const total = accounts.assets - accounts.liabilities;
+
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<AccountBalance | null | undefined>(undefined);
+  // undefined = closed, null = creating, object = editing
+  const closeModal = () => setEditing(undefined);
+  const onSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    closeModal();
+  };
 
   return (
     <div className={styles.page}>
@@ -119,11 +130,18 @@ export function AccountsPage() {
         </section>
 
         <section className={styles.listSection}>
-          <h2 className={styles.sectionTitle}>All Accounts</h2>
+          <div className={styles.listHeader}>
+            <h2 className={styles.sectionTitle}>All Accounts</h2>
+            <button type="button" className={styles.addBtn} onClick={() => setEditing(null)}>
+              + Add account
+            </button>
+          </div>
           {accounts.accounts.map((acc, i) => (
-            <motion.div
+            <motion.button
+              type="button"
               key={acc.account_id}
               className={styles.accountRow}
+              onClick={() => setEditing(acc)}
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.06, duration: 0.3 }}
@@ -138,13 +156,17 @@ export function AccountsPage() {
                 decimals={2}
                 className={`${styles.accountBalance} ${acc.balance < 0 ? styles.expense : ''}`}
               />
-            </motion.div>
+            </motion.button>
           ))}
         </section>
 
+        {editing !== undefined && (
+          <AccountModal account={editing} onClose={closeModal} onSaved={onSaved} />
+        )}
+
         <div className={styles.syncNote}>
           <span className={styles.syncDot} />
-          <span>Balances synced from Enable Banking · 4×/day</span>
+          <span>EB accounts synced 4×/day · manual accounts updated by you</span>
         </div>
       </main>
     </div>
