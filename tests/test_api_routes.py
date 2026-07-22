@@ -594,3 +594,67 @@ class TestStatsPeriod:
     def test_transactions_date_range_validated(self, auth_client):
         resp = auth_client.get("/v1/transactions?date_from=2026-06-30&date_to=2026-06-01")
         assert resp.status_code == 422
+
+
+class TestAccountsRoutes:
+    def test_create_account_returns_201(self, auth_client):
+        row = {
+            "account_id": "manual:abc",
+            "display_name": "Wallet",
+            "type": "cash",
+            "currency": "EUR",
+            "is_manual": True,
+            "opening_balance": 200.0,
+        }
+        conn = _mock_conn()
+        with (
+            patch("fintracker.server.services.accounts.create_account", return_value=row),
+            patch("fintracker.server.routes.api.db_conn") as db,
+        ):
+            db.return_value.__enter__.return_value = conn
+            r = auth_client.post(
+                "/v1/accounts",
+                json={"display_name": "Wallet", "type": "cash", "opening_balance": 200},
+            )
+        assert r.status_code == 201
+        assert r.json()["data"]["account_id"] == "manual:abc"
+
+    def test_create_account_rejects_unknown_type(self, auth_client):
+        r = auth_client.post("/v1/accounts", json={"display_name": "X", "type": "crypto"})
+        assert r.status_code == 422
+
+    def test_patch_account_rejects_opening_change_on_synced(self, auth_client):
+        eb = {
+            "account_id": "eb1",
+            "display_name": "Revolut",
+            "type": "bank",
+            "currency": "EUR",
+            "is_manual": False,
+            "opening_balance": 10.0,
+        }
+        conn = _mock_conn()
+        with (
+            patch("fintracker.server.services.accounts.get_account", return_value=eb),
+            patch("fintracker.server.routes.api.db_conn") as db,
+        ):
+            db.return_value.__enter__.return_value = conn
+            r = auth_client.patch("/v1/accounts/eb1", json={"opening_balance": 999})
+        assert r.status_code == 422
+
+    def test_delete_account_maps_status_to_http(self, auth_client):
+        conn = _mock_conn()
+        for status, code in [("not_found", 404), ("protected", 403), ("has_transactions", 409)]:
+            with (
+                patch("fintracker.server.services.accounts.delete_account", return_value=status),
+                patch("fintracker.server.routes.api.db_conn") as db,
+            ):
+                db.return_value.__enter__.return_value = conn
+                r = auth_client.delete("/v1/accounts/x")
+                assert r.status_code == code
+
+    def test_accounts_routes_require_auth(self, client):
+        assert (
+            client.post("/v1/accounts", json={"display_name": "X", "type": "cash"}).status_code
+            == 401
+        )
+        assert client.delete("/v1/accounts/x").status_code == 401

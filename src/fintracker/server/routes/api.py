@@ -56,6 +56,32 @@ class ManualTransactionIn(BaseModel):
         return self
 
 
+class AccountIn(BaseModel):
+    display_name: str
+    type: str
+    currency: str = "EUR"
+    opening_balance: Decimal = Decimal("0")
+
+    @model_validator(mode="after")
+    def _check_type(self) -> "AccountIn":
+        if self.type not in accounts.ACCOUNT_TYPES:
+            raise ValueError("unknown account type")
+        return self
+
+
+class AccountUpdate(BaseModel):
+    display_name: str | None = None
+    type: str | None = None
+    currency: str | None = None
+    opening_balance: Decimal | None = None
+
+    @model_validator(mode="after")
+    def _check_type(self) -> "AccountUpdate":
+        if self.type is not None and self.type not in accounts.ACCOUNT_TYPES:
+            raise ValueError("unknown account type")
+        return self
+
+
 def _list_transactions(
     page: int,
     page_size: int,
@@ -206,6 +232,55 @@ def stats_category_trend_v1(
 @router_v1.get("/accounts")
 def accounts_v1() -> dict:
     return {"data": _accounts()}
+
+
+@router_v1.post("/accounts", status_code=201)
+def create_account_v1(body: AccountIn) -> dict:
+    with db_conn() as conn:
+        return {
+            "data": accounts.create_account(
+                conn,
+                display_name=body.display_name,
+                type=body.type,
+                currency=body.currency,
+                opening_balance=body.opening_balance,
+            )
+        }
+
+
+@router_v1.patch("/accounts/{account_uid}")
+def update_account_v1(account_uid: str, body: AccountUpdate) -> dict:
+    with db_conn() as conn:
+        acc = accounts.get_account(conn, account_uid)
+        if acc is None:
+            raise HTTPException(status_code=404, detail="unknown account")
+        if not acc["is_manual"] and (body.opening_balance is not None or body.currency is not None):
+            raise HTTPException(
+                status_code=422, detail="cannot change balance or currency on a synced account"
+            )
+        updated = accounts.update_account(
+            conn,
+            account_uid,
+            display_name=body.display_name,
+            type=body.type,
+            opening_balance=body.opening_balance if acc["is_manual"] else None,
+        )
+        return {"data": updated}
+
+
+@router_v1.delete("/accounts/{account_uid}")
+def delete_account_v1(account_uid: str) -> dict:
+    with db_conn() as conn:
+        result = accounts.delete_account(conn, account_uid)
+    errors = {
+        "not_found": (404, "unknown account"),
+        "protected": (403, "synced accounts cannot be deleted"),
+        "has_transactions": (409, "account has transactions"),
+    }
+    if result in errors:
+        code, msg = errors[result]
+        raise HTTPException(status_code=code, detail=msg)
+    return {"data": {"account_id": account_uid}}
 
 
 @router_v1.get("/categories")
