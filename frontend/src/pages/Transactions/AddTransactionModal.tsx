@@ -4,7 +4,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { transactionQueries, taxonomyQueries } from '../../api/queries';
+import { transactionQueries, taxonomyQueries, accountQueries } from '../../api/queries';
 import styles from './AddTransactionModal.module.css';
 
 type TxType = 'income' | 'expense';
@@ -44,6 +44,11 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
   const selectedCategory = useWatch({ control: form.control, name: 'category' });
   const subcategories = selectedCategory ? (sideCategories[selectedCategory] ?? []) : [];
 
+  const { data: accountsData } = useQuery({ ...accountQueries.list() });
+  const accountList = accountsData?.accounts ?? [];
+  const [accountId, setAccountId] = useState<string>('');
+  const effectiveAccountId = accountId || accountList[0]?.account_id || '';
+
   const mutation = useMutation({
     ...transactionQueries.create(),
     onSuccess: () => {
@@ -60,6 +65,7 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
       eur_amount: signed,
       currency: 'EUR',
       merchant_name: values.merchant_name,
+      account_id: effectiveAccountId || null,
       category: values.category || null,
       subcategory: values.subcategory || null,
       description: values.description || null,
@@ -134,6 +140,23 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
                 <input className={styles.input} type="date" {...form.register('booking_date')} />
                 {errors.booking_date && <span className={styles.fieldError}>{errors.booking_date.message}</span>}
               </label>
+
+              {accountList.length > 0 && (
+                <label className={styles.field}>
+                  <span className={styles.fieldLabel}>Account</span>
+                  <select
+                    className={styles.input}
+                    value={effectiveAccountId}
+                    onChange={e => setAccountId(e.target.value)}
+                  >
+                    {accountList.map(a => (
+                      <option key={a.account_id} value={a.account_id}>
+                        {a.display_name ?? a.account_id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Category</span>
