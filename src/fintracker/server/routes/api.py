@@ -72,7 +72,6 @@ class AccountIn(BaseModel):
 class AccountUpdate(BaseModel):
     display_name: str | None = None
     type: str | None = None
-    currency: str | None = None
     opening_balance: Decimal | None = None
 
     @model_validator(mode="after")
@@ -254,10 +253,8 @@ def update_account_v1(account_uid: str, body: AccountUpdate) -> dict:
         acc = accounts.get_account(conn, account_uid)
         if acc is None:
             raise HTTPException(status_code=404, detail="unknown account")
-        if not acc["is_manual"] and (body.opening_balance is not None or body.currency is not None):
-            raise HTTPException(
-                status_code=422, detail="cannot change balance or currency on a synced account"
-            )
+        if not acc["is_manual"] and body.opening_balance is not None:
+            raise HTTPException(status_code=422, detail="cannot change balance on a synced account")
         updated = accounts.update_account(
             conn,
             account_uid,
