@@ -96,23 +96,33 @@ def subcategory_breakdown(
 
 
 def balance_history(conn, months: int = 12) -> list[dict]:
-    """Monthly cumulative total balance: openings + running sum of EB-account deltas.
+    """Monthly cumulative total balance: openings + running sum of account deltas.
 
-    Internal rows count (they move real money); manual rows (account_id IS NULL) don't,
-    mirroring the accounts page scope. Only calibrated accounts (those in the accounts
-    table) are summed — same INNER-JOIN scope as accounts.balances, so the last point
-    reconciles with net worth and stale post-renewal account_ids are excluded.
+    Non-manual (EB) openings are the flat baseline (their opening is the balance at
+    t=-infinity). Manual openings are "balance as of creation", so they enter as a net in
+    their created_at month instead of retroactively shifting the whole series. Internal
+    rows count; only registered accounts (those in the accounts table) are summed, so the
+    last point reconciles with net worth and stale post-renewal uids are excluded.
     """
     with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT COALESCE(SUM(opening_balance), 0) AS total FROM accounts")
+        cur.execute(
+            "SELECT COALESCE(SUM(opening_balance), 0) AS total FROM accounts WHERE NOT is_manual"
+        )
         openings = float(cur.fetchone()["total"])
         cur.execute(
-            """SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
-                      SUM(eur_amount) AS net
-               FROM transactions
-               WHERE account_id IN (SELECT account_uid FROM accounts)
-               GROUP BY 1
-               ORDER BY 1"""
+            """SELECT month, SUM(net) AS net FROM (
+                   SELECT TO_CHAR(DATE_TRUNC('month', booking_date), 'YYYY-MM') AS month,
+                          eur_amount AS net
+                   FROM transactions
+                   WHERE account_id IN (SELECT account_uid FROM accounts)
+                   UNION ALL
+                   SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month,
+                          opening_balance AS net
+                   FROM accounts
+                   WHERE is_manual
+               ) x
+               GROUP BY month
+               ORDER BY month"""
         )
         rows = cur.fetchall()
 

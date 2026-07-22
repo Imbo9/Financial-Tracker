@@ -510,3 +510,26 @@ def test_delete_account_deletes_empty_manual():
     )
     assert accounts.delete_account(conn, "manual:x") == "deleted"
     assert any("DELETE FROM accounts" in c.args[0] for c in cur.execute.call_args_list)
+
+
+def test_balance_history_manual_openings_are_not_retroactive():
+    from unittest.mock import MagicMock
+
+    conn = MagicMock()
+    cur = MagicMock()
+    cur.fetchone.return_value = {"total": 0.0}
+    cur.fetchall.return_value = []
+    conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
+    conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+    stats.balance_history(conn, months=3)
+
+    openings_sql = cur.execute.call_args_list[0].args[0]
+    nets_sql = cur.execute.call_args_list[1].args[0]
+    # Flat baseline excludes manual openings...
+    assert "WHERE NOT is_manual" in openings_sql
+    # ...they re-enter as a net at their creation month instead.
+    assert "UNION ALL" in nets_sql
+    assert "DATE_TRUNC('month', created_at)" in nets_sql
+    assert "WHERE is_manual" in nets_sql
+    assert "account_uid FROM accounts" in nets_sql  # transaction scope preserved
