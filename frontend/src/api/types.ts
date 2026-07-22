@@ -30,10 +30,30 @@ export interface MonthlyStat {
   net: number;
 }
 
+export type AccountType = 'cash' | 'bank' | 'card' | 'savings';
+
 export interface AccountBalance {
   account_id: string;
   balance: number;
   display_name: string | null;
+  type: AccountType;
+  currency: string;
+  is_manual: boolean;
+  opening_balance: number;
+}
+
+export interface AccountInput {
+  display_name: string;
+  type: AccountType;
+  currency?: string;
+  opening_balance: number;
+}
+
+export interface AccountUpdateInput {
+  account_id: string;
+  display_name?: string;
+  type?: AccountType;
+  opening_balance?: number;
 }
 
 export interface BalancePoint {

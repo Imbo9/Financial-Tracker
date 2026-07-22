@@ -10,6 +10,9 @@ import type {
   BalancePoint,
   SubcategoryStat,
   CategoryTrendPoint,
+  AccountBalance,
+  AccountInput,
+  AccountUpdateInput,
 } from './types';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
@@ -85,5 +88,15 @@ export const api = {
   accounts: {
     list: (): Promise<AccountsResponse> =>
       http.get('/v1/accounts').then(unwrap<AccountsResponse>),
+    create: (data: AccountInput): Promise<AccountBalance> =>
+      http.post('/v1/accounts', data).then(unwrap<AccountBalance>),
+    update: ({ account_id, ...data }: AccountUpdateInput): Promise<AccountBalance> =>
+      http
+        .patch(`/v1/accounts/${encodeURIComponent(account_id)}`, data)
+        .then(unwrap<AccountBalance>),
+    remove: (account_id: string): Promise<{ account_id: string }> =>
+      http
+        .delete(`/v1/accounts/${encodeURIComponent(account_id)}`)
+        .then(unwrap<{ account_id: string }>),
   },
 };

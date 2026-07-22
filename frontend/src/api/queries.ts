@@ -59,6 +59,18 @@ export const accountQueries = {
     queryKey: ['accounts'] as const,
     queryFn: api.accounts.list,
   }),
+  create: () => ({
+    mutationKey: ['accounts', 'create'] as const,
+    mutationFn: api.accounts.create,
+  }),
+  update: () => ({
+    mutationKey: ['accounts', 'update'] as const,
+    mutationFn: api.accounts.update,
+  }),
+  remove: () => ({
+    mutationKey: ['accounts', 'remove'] as const,
+    mutationFn: api.accounts.remove,
+  }),
 };
 
 export const taxonomyQueries = {
