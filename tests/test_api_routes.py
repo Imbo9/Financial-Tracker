@@ -327,7 +327,15 @@ class TestStats:
         assert abs(data[0]["net"] - (2198.80 - 114.25)) < 0.01
 
 
-FAKE_ACCOUNT_ROW = {"account_id": "revolut-main", "balance": 1234.56, "display_name": None}
+FAKE_ACCOUNT_ROW = {
+    "account_id": "revolut-main",
+    "balance": 1234.56,
+    "display_name": None,
+    "type": "bank",
+    "currency": "EUR",
+    "is_manual": False,
+    "opening_balance": 1000.0,
+}
 
 
 class TestAccounts:

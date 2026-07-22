@@ -70,27 +70,45 @@ def test_stats_by_category_adds_percentage():
 def test_accounts_balances_splits_assets_liabilities():
     conn = _conn_returning(
         [
-            {"account_id": "a", "balance": 100.0, "display_name": "Main"},
-            {"account_id": "b", "balance": -40.0, "display_name": None},
+            {
+                "account_id": "a",
+                "balance": 100.0,
+                "display_name": "Main",
+                "type": "bank",
+                "currency": "EUR",
+                "is_manual": False,
+                "opening_balance": 90.0,
+            },
+            {
+                "account_id": "b",
+                "balance": -40.0,
+                "display_name": None,
+                "type": "card",
+                "currency": "EUR",
+                "is_manual": False,
+                "opening_balance": 0.0,
+            },
         ]
     )
     out = accounts.balances(conn)
     assert out["assets"] == 100.0
     assert out["liabilities"] == 40.0
     assert out["accounts"][0]["display_name"] == "Main"
+    assert out["accounts"][0]["type"] == "bank"
+    assert out["accounts"][0]["is_manual"] is False
 
 
-def test_accounts_balances_inner_joins_openings_only():
+def test_accounts_balances_left_joins_all_registered_accounts():
     conn, cur = _conn_with_cursor([])
     accounts.balances(conn)
     sql = cur.execute.call_args[0][0]
-    # INNER JOIN (not LEFT): only calibrated accounts show, so stale post-renewal
-    # account_ids without an openings row are excluded.
-    assert "JOIN accounts" in sql
-    assert "LEFT JOIN" not in sql
+    # LEFT JOIN from accounts: a manual account with zero transactions still shows its
+    # opening balance. Scope is driven by the accounts table (stale EB uids aren't in it).
+    assert "FROM accounts a" in sql
+    assert "LEFT JOIN transactions" in sql
+    assert "COALESCE(SUM(t.eur_amount), 0)" in sql
     assert "opening_balance" in sql
     assert "real_transactions" not in sql
-    assert "FROM transactions" in sql
 
 
 def test_balance_history_scopes_to_calibrated_accounts():
