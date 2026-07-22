@@ -533,3 +533,7 @@ def test_balance_history_manual_openings_are_not_retroactive():
     assert "DATE_TRUNC('month', created_at)" in nets_sql
     assert "WHERE is_manual" in nets_sql
     assert "account_uid FROM accounts" in nets_sql  # transaction scope preserved
+    # outer aggregation must sum duplicate months (a manual opening + a tx net in the
+    # same month), else the nets dict comprehension would overwrite one with the other
+    assert "SUM(net)" in nets_sql
+    assert "GROUP BY" in nets_sql
