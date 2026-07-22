@@ -88,12 +88,12 @@ export const api = {
   accounts: {
     list: (): Promise<AccountsResponse> =>
       http.get('/v1/accounts').then(unwrap<AccountsResponse>),
-    create: (data: AccountInput): Promise<AccountBalance> =>
-      http.post('/v1/accounts', data).then(unwrap<AccountBalance>),
-    update: ({ account_id, ...data }: AccountUpdateInput): Promise<AccountBalance> =>
+    create: (data: AccountInput): Promise<Omit<AccountBalance, 'balance'>> =>
+      http.post('/v1/accounts', data).then(unwrap<Omit<AccountBalance, 'balance'>>),
+    update: ({ account_id, ...data }: AccountUpdateInput): Promise<Omit<AccountBalance, 'balance'>> =>
       http
         .patch(`/v1/accounts/${encodeURIComponent(account_id)}`, data)
-        .then(unwrap<AccountBalance>),
+        .then(unwrap<Omit<AccountBalance, 'balance'>>),
     remove: (account_id: string): Promise<{ account_id: string }> =>
       http
         .delete(`/v1/accounts/${encodeURIComponent(account_id)}`)

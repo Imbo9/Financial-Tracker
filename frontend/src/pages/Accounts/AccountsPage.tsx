@@ -60,6 +60,7 @@ export function AccountsPage() {
   const closeModal = () => setEditing(undefined);
   const onSaved = () => {
     queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    queryClient.invalidateQueries({ queryKey: ['stats', 'balance-history'] });
     closeModal();
   };
 
