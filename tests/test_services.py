@@ -400,3 +400,113 @@ def test_subcategory_breakdown_binds_date_range():
     assert "days_back" not in sql.lower()
     # category param first, then the two dates
     assert params == ["Car", date(2026, 6, 1), date(2026, 6, 30)]
+
+
+def _dict_cursor_conn(fetchone_seq):
+    """A conn whose dict_row cursor returns the given fetchone values in order."""
+    from unittest.mock import MagicMock
+
+    conn = MagicMock()
+    cur = MagicMock()
+    cur.fetchone.side_effect = list(fetchone_seq)
+    conn.cursor.return_value.__enter__ = MagicMock(return_value=cur)
+    conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+    return conn, cur
+
+
+def test_account_types_are_the_single_source():
+    assert frozenset({"cash", "bank", "card", "savings"}) == accounts.ACCOUNT_TYPES
+
+
+def test_create_account_namespaces_uid_and_marks_manual():
+    row = {
+        "account_id": "manual:x",
+        "display_name": "Wallet",
+        "type": "cash",
+        "currency": "EUR",
+        "is_manual": True,
+        "opening_balance": 200.0,
+    }
+    conn, cur = _dict_cursor_conn([row])
+    from decimal import Decimal
+
+    out = accounts.create_account(
+        conn, display_name="Wallet", type="cash", opening_balance=Decimal("200")
+    )
+    sql, params = cur.execute.call_args[0]
+    assert "INSERT INTO accounts" in sql and "TRUE" in sql  # is_manual literal TRUE
+    assert params[0].startswith("manual:")
+    assert out["opening_balance"] == 200.0 and isinstance(out["opening_balance"], float)
+
+
+def test_get_account_returns_none_when_absent():
+    conn, _ = _dict_cursor_conn([None])
+    assert accounts.get_account(conn, "manual:nope") is None
+
+
+def test_update_account_only_sets_provided_fields():
+    row = {
+        "account_id": "manual:x",
+        "display_name": "Cash",
+        "type": "cash",
+        "currency": "EUR",
+        "is_manual": True,
+        "opening_balance": 0.0,
+    }
+    conn, cur = _dict_cursor_conn([row])
+    accounts.update_account(conn, "manual:x", display_name="Cash")
+    sql, params = cur.execute.call_args[0]
+    assert "display_name = %s" in sql
+    assert "type = %s" not in sql and "opening_balance = %s" not in sql
+    assert params == ["Cash", "manual:x"]
+
+
+def test_delete_account_blocks_non_manual():
+    conn, _ = _dict_cursor_conn(
+        [
+            {
+                "account_id": "eb1",
+                "display_name": "Revolut",
+                "type": "bank",
+                "currency": "EUR",
+                "is_manual": False,
+                "opening_balance": 10.0,
+            },
+        ]
+    )
+    assert accounts.delete_account(conn, "eb1") == "protected"
+
+
+def test_delete_account_blocks_when_transactions_exist():
+    conn, _ = _dict_cursor_conn(
+        [
+            {
+                "account_id": "manual:x",
+                "display_name": "Cash",
+                "type": "cash",
+                "currency": "EUR",
+                "is_manual": True,
+                "opening_balance": 0.0,
+            },  # get_account
+            (1,),  # the "SELECT 1 FROM transactions" probe finds a row
+        ]
+    )
+    assert accounts.delete_account(conn, "manual:x") == "has_transactions"
+
+
+def test_delete_account_deletes_empty_manual():
+    conn, cur = _dict_cursor_conn(
+        [
+            {
+                "account_id": "manual:x",
+                "display_name": "Cash",
+                "type": "cash",
+                "currency": "EUR",
+                "is_manual": True,
+                "opening_balance": 0.0,
+            },  # get_account
+            None,  # no transactions
+        ]
+    )
+    assert accounts.delete_account(conn, "manual:x") == "deleted"
+    assert any("DELETE FROM accounts" in c.args[0] for c in cur.execute.call_args_list)
