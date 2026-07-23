@@ -82,4 +82,10 @@ describe('AddTransactionModal', () => {
       expect.objectContaining({ account_id: 'manual:1' }),
     );
   });
+
+  it('caps the transaction date at today', () => {
+    renderModal();
+    const dateInput = screen.getByLabelText('Date') as HTMLInputElement;
+    expect(dateInput.max).toBe(new Date().toISOString().slice(0, 10));
+  });
 });

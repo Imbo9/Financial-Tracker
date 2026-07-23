@@ -26,11 +26,14 @@ interface Props {
 
 export function AddTransactionModal({ onClose, onAdd }: Props) {
   const [type, setType] = useState<TxType>('expense');
+  // Cap the date at today: a future booking_date would count in net worth but not in the
+  // balance-history series (which stops at the current month), desyncing the two.
+  const today = new Date().toISOString().slice(0, 10);
 
   const form = useForm<z.input<typeof schema>, unknown, FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      booking_date: new Date().toISOString().slice(0, 10),
+      booking_date: today,
       merchant_name: '',
       category: '',
       subcategory: '',
@@ -137,7 +140,7 @@ export function AddTransactionModal({ onClose, onAdd }: Props) {
 
               <label className={styles.field}>
                 <span className={styles.fieldLabel}>Date</span>
-                <input className={styles.input} type="date" {...form.register('booking_date')} />
+                <input className={styles.input} type="date" max={today} {...form.register('booking_date')} />
                 {errors.booking_date && <span className={styles.fieldError}>{errors.booking_date.message}</span>}
               </label>
 
