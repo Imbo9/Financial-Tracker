@@ -652,6 +652,43 @@ class TestAccountsRoutes:
                 r = auth_client.delete("/v1/accounts/x")
                 assert r.status_code == code
 
+    def test_patch_account_updates_synced_display_name_and_type(self, auth_client):
+        # A synced (EB) account may still be renamed and re-typed — only opening/currency
+        # are locked. This is the happy path the guard test alone doesn't cover.
+        eb = {
+            "account_id": "eb1",
+            "display_name": "Revolut",
+            "type": "bank",
+            "currency": "EUR",
+            "is_manual": False,
+            "opening_balance": 10.0,
+        }
+        updated = {**eb, "display_name": "My Revolut", "type": "card"}
+        conn = _mock_conn()
+        with (
+            patch("fintracker.server.services.accounts.get_account", return_value=eb),
+            patch("fintracker.server.services.accounts.update_account", return_value=updated),
+            patch("fintracker.server.routes.api.db_conn") as db,
+        ):
+            db.return_value.__enter__.return_value = conn
+            r = auth_client.patch(
+                "/v1/accounts/eb1", json={"display_name": "My Revolut", "type": "card"}
+            )
+        assert r.status_code == 200
+        assert r.json()["data"]["display_name"] == "My Revolut"
+        assert r.json()["data"]["type"] == "card"
+
+    def test_delete_account_success_returns_200(self, auth_client):
+        conn = _mock_conn()
+        with (
+            patch("fintracker.server.services.accounts.delete_account", return_value="deleted"),
+            patch("fintracker.server.routes.api.db_conn") as db,
+        ):
+            db.return_value.__enter__.return_value = conn
+            r = auth_client.delete("/v1/accounts/manual:1")
+        assert r.status_code == 200
+        assert r.json()["data"]["account_id"] == "manual:1"
+
     def test_accounts_routes_require_auth(self, client):
         assert (
             client.post("/v1/accounts", json={"display_name": "X", "type": "cash"}).status_code
