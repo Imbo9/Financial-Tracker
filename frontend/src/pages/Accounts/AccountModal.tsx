@@ -18,10 +18,12 @@ export function AccountModal({ account, onClose, onSaved }: Props) {
   const [name, setName] = useState(account?.display_name ?? '');
   const [type, setType] = useState<AccountType>(account?.type ?? 'cash');
   const [opening, setOpening] = useState(String(account?.opening_balance ?? ''));
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const create = useMutation({ ...accountQueries.create(), onSuccess: onSaved });
   const update = useMutation({ ...accountQueries.update(), onSuccess: onSaved });
-  const pending = create.isPending || update.isPending;
+  const remove = useMutation({ ...accountQueries.remove(), onSuccess: onSaved });
+  const pending = create.isPending || update.isPending || remove.isPending;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +77,47 @@ export function AccountModal({ account, onClose, onSaved }: Props) {
           <button type="submit" disabled={pending || !name} className={styles.save}>
             {pending ? 'Saving…' : 'Save'}
           </button>
+
+          {/* Delete is only offered for manual accounts — EB accounts are backend-protected (403). */}
+          {isEdit && isManual && (
+            <div className={styles.deleteRow}>
+              {confirmingDelete ? (
+                <>
+                  <span className={styles.confirmText}>Delete this account?</span>
+                  <button
+                    type="button"
+                    className={styles.confirmDelete}
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      if (account) remove.mutate(account.account_id);
+                    }}
+                  >
+                    {remove.isPending ? 'Deleting…' : 'Confirm delete'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.cancelDelete}
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.delete}
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  Delete account
+                </button>
+              )}
+            </div>
+          )}
+          {remove.isError && (
+            <div className={styles.error}>
+              Impossibile eliminare — il conto ha movimenti o è protetto.
+            </div>
+          )}
         </form>
       </div>
     </div>

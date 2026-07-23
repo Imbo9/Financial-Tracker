@@ -37,3 +37,32 @@
   cursor: pointer;
 }
 .save:disabled { opacity: 0.5; cursor: default; }
+.deleteRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.delete {
+  background: none;
+  border: 1px solid var(--expense, #e5484d);
+  color: var(--expense, #e5484d);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.confirmText { font-size: 13px; color: var(--text-muted); }
+.confirmDelete {
+  background: var(--expense, #e5484d);
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.confirmDelete:disabled { opacity: 0.5; cursor: default; }
+.cancelDelete {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
